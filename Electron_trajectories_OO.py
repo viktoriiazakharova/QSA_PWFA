@@ -48,7 +48,7 @@ class QSA_PWFA:
         Gaussian beam density distribution
         """
         val = self.n_b * np.exp(-(ksi-self.ksi0)**2 / 2 / self.R_xi**2 )\
-        * np.exp(-r**2 / (2 * self.R_b**2))
+           * np.exp(-r**2 / (2 * self.R_b**2))
 
         return val
 
@@ -60,14 +60,15 @@ class QSA_PWFA:
         * self.R_b**2 * ( 1 - np.exp(-r**2 / 2 / self.R_b**2 ) )
         return val
 
+    def get_dAz_dr(self):
+        for j in range(self.N_r):
+            self.integral_nb_dr[j] = self.gaussian_integrate(self.r[j], xi_i)
     
     def xi_step(self, i):
             
             xi_i = self.xi[i]
 
-            for j in range(self.N_r):
 
-                integral_nb_dr = self.gaussian_integrate(self.r[j], xi_i)
   
                 integral_plasma = 0.0
                 
