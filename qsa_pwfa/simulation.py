@@ -1,0 +1,114 @@
+import numpy as np
+from .inline_methods import *
+
+
+class Simulation:
+
+    def __init__(self, L_xi, N_xi, L_r, N_r):
+
+        self.init_grids(L_xi, N_xi, L_r, N_r)
+        self.allocate_data()
+
+    def init_beam(self, n_b, R_b, ksi0, R_xi):
+        self.n_b = n_b
+        self.R_b = R_b
+        self.ksi0 = ksi0
+        self.R_xi = R_xi
+
+    def init_grids(self, L_xi, N_xi, L_r, N_r):
+        self.L_xi = L_xi
+        self.N_xi = N_xi
+        self.L_r = L_r
+        self.N_r = N_r
+
+        self.xi = L_xi / N_xi * np.arange(N_xi)
+        self.r0 = np.linspace(L_r/N_r, L_r, N_r)
+
+    def allocate_data(self):
+        self.r = self.r0.copy()
+        self.r_half = self.r0.copy()
+        self.r_next = self.r0.copy()
+
+        self.p_perp = np.zeros_like(self.r0)
+        self.p_perp_next = np.zeros_like(self.r0)
+
+        self.T = np.zeros_like(self.r0)
+
+        self.v_z = np.zeros_like(self.r0)
+
+        self.dAz_dr = np.zeros_like(self.r0)
+        self.dPsi_dr = np.zeros_like(self.r0)
+        self.Psi = np.zeros_like(self.r0)
+        self.F = np.zeros_like(self.r0)
+
+        self.dxi = self.xi[1] - self.xi[0]
+        self.dr0 = self.r0[1] - self.r0[0]
+
+    def gaussian_beam(self, r, ksi):
+        """
+        Gaussian beam density distribution
+        """
+        val = self.n_b * np.exp(-(ksi-self.ksi0)**2 / 2 / self.R_xi**2 )\
+           * np.exp(-r**2 / (2 * self.R_b**2))
+
+        return val
+
+    def gaussian_integrate(self, r, ksi):
+        """
+        Gaussian beam density distribution integrated over `r`
+        """
+        val = self.n_b * np.exp(-(ksi-self.ksi0)**2 / 2 / self.R_xi**2)\
+        * self.R_b**2 * ( 1 - np.exp(-r**2 / 2 / self.R_b**2 ) )
+
+        return val
+
+    def get_T(self):
+        for j in range(self.N_r):
+            self.T[j] = (1 + self.p_perp[j] ** 2) / (1 + self.Psi[j]) **2
+
+    def get_v_z(self):
+         for j in range(self.N_r):
+                self.v_z[j] = (self.T[j] - 1) / (self.T[j] + 1)
+
+    def get_dAz_dr(self, xi_i):
+        for j in range(self.N_r):
+            self.dAz_dr[j] = self.gaussian_integrate(self.r[j], xi_i)/ self.r[j]\
+            + sum_up_to_j( self.r0 * self.dr0 * self.v_z / (1-self.v_z), j, self.r )/ self.r[j]
+
+    def get_dPsi_dr(self):
+        for j in range(self.N_r):
+            self.dPsi_dr[j] = -0.5  * self.r[j]  + sum_up_to_j( self.r0 * self.dr0 , j, self.r )/ self.r[j]
+
+    def get_Psi(self, r_loc):
+        Psi0 = self.dr0 * np.sum (self.r0 * np.log(r_loc / self.r0 ))
+
+        for j in range(self.N_r):
+            self.Psi[j] = -0.25 * r_loc[j]**2 + Psi0 \
+              + self.dr0 * sum_up_to_j( self.r0 * np.log(r_loc[j] / r_loc), j, r_loc )
+
+    def get_force(self):
+        self.F = self.dPsi_dr + (1 - self.v_z) * self.dAz_dr
+
+    def advance_xi(self, i_xi, correct_Psi=True):
+
+        self.get_Psi(self.r)
+        self.get_T()
+        self.get_v_z()
+
+        self.get_dAz_dr(self.xi[i_xi])
+        self.get_dPsi_dr()
+        self.get_force()
+
+        self.p_perp_next[:] = self.p_perp + self.dxi * self.F / (1 - self.v_z)
+
+        if correct_Psi:
+            self.r_half[:] = self.r + 0.5*self.dxi * self.p_perp_next / (1 + self.Psi)
+            fix_crossing_axis_r(self.r_half)
+            self.get_Psi(self.r_half)
+
+        self.r_next[:] = self.r + self.dxi * self.p_perp_next / (1 + self.Psi)
+
+        fix_crossing_axis_rp(self.r_next, self.p_perp_next)
+
+        self.r[:] = self.r_next
+        self.p_perp[:] = self.p_perp_next
