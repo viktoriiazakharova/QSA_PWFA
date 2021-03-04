@@ -22,7 +22,13 @@ class Simulation:
         self.N_r = N_r
 
         self.xi = L_xi / N_xi * np.arange(N_xi)
-        self.r0 = np.linspace(L_r/N_r, L_r, N_r)
+        self.dxi = self.xi[1] - self.xi[0]
+
+        self.dr0 = L_r/N_r
+        self.r0 = self.dr0 * np.arange(1,N_r+1)
+        
+        self.dV = self.dr0 * (self.r0 - 0.5*self.dr0) 
+        self.dV[0] = 0.5 * self.dr0**2
 
     def allocate_data(self):
         self.r = self.r0.copy()
@@ -40,9 +46,6 @@ class Simulation:
         self.dPsi_dr = np.zeros_like(self.r0)
         self.Psi = np.zeros_like(self.r0)
         self.F = np.zeros_like(self.r0)
-
-        self.dxi = self.xi[1] - self.xi[0]
-        self.dr0 = self.r0[1] - self.r0[0]
 
     def gaussian_beam(self, r, ksi):
         """
@@ -73,18 +76,18 @@ class Simulation:
     def get_dAz_dr(self, xi_i):
         for j in range(self.N_r):
             self.dAz_dr[j] = self.gaussian_integrate(self.r[j], xi_i)/ self.r[j]\
-            + sum_up_to_j( self.r0 * self.dr0 * self.v_z / (1-self.v_z), j, self.r )/ self.r[j]
+            + sum_up_to_j( self.dV * self.v_z / (1-self.v_z), j, self.r )/ self.r[j]
 
     def get_dPsi_dr(self):
         for j in range(self.N_r):
-            self.dPsi_dr[j] = -0.5  * self.r[j]  + sum_up_to_j( self.r0 * self.dr0 , j, self.r )/ self.r[j]
+            self.dPsi_dr[j] = -0.5  * self.r[j] + sum_up_to_j( self.dV , j, self.r )/ self.r[j]
 
     def get_Psi(self, r_loc):
-        Psi0 = self.dr0 * np.sum (self.r0 * np.log(r_loc / self.r0 ))
+        Psi0 = np.sum (self.dV * np.log(r_loc / self.r0 ))
 
         for j in range(self.N_r):
             self.Psi[j] = -0.25 * r_loc[j]**2 + Psi0 \
-              + self.dr0 * sum_up_to_j( self.r0 * np.log(r_loc[j] / r_loc), j, r_loc )
+              + sum_up_to_j( self.dV * np.log(r_loc[j] / r_loc), j, r_loc )
 
     def get_force(self):
         self.F = self.dPsi_dr + (1 - self.v_z) * self.dAz_dr

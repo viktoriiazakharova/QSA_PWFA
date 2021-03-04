@@ -24,7 +24,7 @@ def sum_up_to_j( a, j, r_axis ):
     sum_result = 0
 
     for l in range(Nr):
-        if (r_axis[l]<=r_axis[j]) and (l!=j):
+        if (r_axis[l]<=r_axis[j]):
             sum_result += a[l]
 
     return sum_result
