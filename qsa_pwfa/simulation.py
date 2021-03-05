@@ -26,8 +26,8 @@ class Simulation:
 
         self.dr0 = L_r/N_r
         self.r0 = self.dr0 * np.arange(1,N_r+1)
-        
-        self.dV = self.dr0 * (self.r0 - 0.5*self.dr0) 
+
+        self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
         self.dV[0] = 0.5 * self.dr0**2
 
     def allocate_data(self):
@@ -46,7 +46,7 @@ class Simulation:
         self.dPsi_dr = np.zeros_like(self.r0)
         self.Psi = np.zeros_like(self.r0)
         self.F = np.zeros_like(self.r0)
-        
+
     def gaussian_beam(self, r, ksi):
         """
         Gaussian beam density distribution
@@ -73,7 +73,7 @@ class Simulation:
          for j in range(self.N_r):
                 self.v_z[j] = (self.T[j] - 1) / (self.T[j] + 1)
 
-    def get_dAz_dr(self, xi_i):        
+    def get_dAz_dr(self, xi_i):
         self.dAz_dr = get_dAz_dr_part_inline(self.dAz_dr, self.r, self.dV, self.v_z)
         self.dAz_dr +=  self.gaussian_integrate(self.r, xi_i)/ self.r
 
