@@ -28,3 +28,26 @@ def sum_up_to_j( a, j, r_axis ):
             sum_result += a[l]
 
     return sum_result
+    
+@njit(parallel=True)
+def get_psi_part_inline( Psi, r, dV):
+    N_r = int(r.size)
+    
+    for j in prange(N_r):
+        Psi[j] = -0.25 * r[j]**2 + sum_up_to_j( \
+            dV * np.log(r[j] / r), j, r )
+        
+    return Psi
+
+@njit(parallel=True)
+def get_dAz_dr_part_inline( dAz_dr, r, dV, v_z):
+    N_r = int(r.size)
+    
+    for j in prange(N_r):
+        dAz_dr[j] = sum_up_to_j( dV * v_z / (1-v_z), j, r )/ r[j]
+        
+    return dAz_dr
+        
+       
+        
+        

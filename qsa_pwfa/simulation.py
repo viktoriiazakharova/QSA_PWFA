@@ -46,7 +46,7 @@ class Simulation:
         self.dPsi_dr = np.zeros_like(self.r0)
         self.Psi = np.zeros_like(self.r0)
         self.F = np.zeros_like(self.r0)
-
+        
     def gaussian_beam(self, r, ksi):
         """
         Gaussian beam density distribution
@@ -73,21 +73,18 @@ class Simulation:
          for j in range(self.N_r):
                 self.v_z[j] = (self.T[j] - 1) / (self.T[j] + 1)
 
-    def get_dAz_dr(self, xi_i):
-        for j in range(self.N_r):
-            self.dAz_dr[j] = self.gaussian_integrate(self.r[j], xi_i)/ self.r[j]\
-            + sum_up_to_j( self.dV * self.v_z / (1-self.v_z), j, self.r )/ self.r[j]
+    def get_dAz_dr(self, xi_i):        
+        self.dAz_dr = get_dAz_dr_part_inline(self.dAz_dr, self.r, self.dV, self.v_z)
+        self.dAz_dr +=  self.gaussian_integrate(self.r, xi_i)/ self.r
 
     def get_dPsi_dr(self):
         for j in range(self.N_r):
             self.dPsi_dr[j] = -0.5  * self.r[j] + sum_up_to_j( self.dV , j, self.r )/ self.r[j]
 
     def get_Psi(self, r_loc):
-        Psi0 = np.sum (self.dV * np.log(r_loc / self.r0 ))
-
-        for j in range(self.N_r):
-            self.Psi[j] = -0.25 * r_loc[j]**2 + Psi0 \
-              + sum_up_to_j( self.dV * np.log(r_loc[j] / r_loc), j, r_loc )
+        Psi0 = (self.dV * np.log(r_loc / self.r0 )).sum()
+        self.Psi = get_psi_part_inline(self.Psi, r_loc, self.dV)
+        self.Psi += Psi0
 
     def get_force(self):
         self.F = self.dPsi_dr + (1 - self.v_z) * self.dAz_dr
