@@ -82,3 +82,19 @@ def get_density(r_xi, vz_xi, dV, dr, Nr):
         dens[i_xi] /= dV_new
         
     return dens
+
+def get_field(field_val, r_xi, vz_xi, dV, dr, Nr):
+    
+    N_xi, N_rings = r_xi.shape
+    
+    r_new = dr*np.arange(Nr)
+    dV_new = r_new * dr
+    dV_new[0] = dr**2
+
+    dens = np.zeros((N_xi, Nr))
+
+    for i_xi in prange(N_xi):
+        dens[i_xi] = slice_density_projection(r_xi[i_xi], dV * field_val[i_xi]/(1-vz_xi[i_xi]), dr, Nr)
+        dens[i_xi] /= dV_new
+        
+    return dens
