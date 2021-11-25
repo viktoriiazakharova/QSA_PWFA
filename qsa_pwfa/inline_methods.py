@@ -29,6 +29,13 @@ def sum_up_to_j( a, j, r_axis ):
 
     return sum_result
 
+@njit
+def sum_up_to_j_2( a, j, r_axis ):
+    Nr = r_axis.size
+    sum_result = (a * (r_axis<r_axis[j]) ).sum()
+    # sum_result = a[(r_axis<r_axis[j])].sum()
+    return sum_result
+
 @njit(parallel=True)
 def get_psi_part_inline( Psi, r, dV):
     N_r = int(r.size)
@@ -36,6 +43,15 @@ def get_psi_part_inline( Psi, r, dV):
     for j in prange(N_r):
         Psi[j] = -0.25 * r[j]**2 + sum_up_to_j( \
             dV * np.log(r[j] / r), j, r )
+
+    return Psi
+
+@njit(parallel=True)
+def get_psi_inline( Psi, r, dV):
+    N_r = int(r.size)
+
+    for j in prange(N_r):
+        Psi[j] = (    ).sum()
 
     return Psi
 
