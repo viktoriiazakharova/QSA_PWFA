@@ -47,11 +47,11 @@ def get_psi_part_inline( Psi, r, dV):
     return Psi
 
 @njit(parallel=True)
-def get_psi_inline( Psi, r, dV):
+def get_psi_inline( Psi, r, r0, dV):
     N_r = int(r.size)
 
     for j in prange(N_r):
-        Psi[j] = (    ).sum()
+        Psi[j] = ( dV *  ( (r[j] > r0).astype(np.int32)  - (r[j] > r).astype(np.int32) ) * np.log(r0 / r[j])   ).sum()
 
     return Psi
 
