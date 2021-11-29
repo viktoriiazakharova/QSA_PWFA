@@ -82,6 +82,9 @@ class Simulation:
             self.dPsi_dr[j] = -0.5  * self.r[j] + sum_up_to_j( self.dV , j, self.r )/ self.r[j]
 
     def get_Psi(self, r_loc):
+        self.Psi = get_psi_inline(self.Psi, r_loc, self.r0, self.dV)
+
+    def get_Psi_2(self, r_loc):
         Psi0 = (self.dV * np.log(r_loc / self.r0 )).sum()
         self.Psi = get_psi_part_inline(self.Psi, r_loc, self.dV)
         self.Psi += Psi0
