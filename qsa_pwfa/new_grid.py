@@ -32,7 +32,7 @@ def get_Psi_new_grid(r, r_rings, dV, r0):
 def get_psi_ng(r_loc, r, r0, dV):
     Psi_loc = ( dV * \
       ( \
-        ( (r_loc > r0).astype(np.int8) - (r_loc > r_rings).astype(np.int8) ) * \
+        ( (r_loc > r0).astype(np.int8) - (r_loc > r).astype(np.int8) ) * \
           np.log( r0 / r_loc ) +  \
         (r > r_loc).astype(np.int8) * np.log( r / r0 ) ) \
       ).sum()
@@ -41,7 +41,7 @@ def get_psi_ng(r_loc, r, r0, dV):
 
 
 @njit(parallel=True)
-def get_Psi_new_grid_new_method(r_grid, r_rings, r0_rings, dV):
+def get_Psi_new_grid_new_method(Psi, r_grid, r_rings, r0_rings, dV):
 
     for ir in prange(r_grid.size):
         Psi[ir] = get_psi_ng(r_grid[ir], r_rings, r0_rings, dV)
