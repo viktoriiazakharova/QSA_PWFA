@@ -30,10 +30,10 @@ def get_dPsi_dr_inline(dPsi_dr, r, dV):
 
 
 @njit(parallel=True)
-def get_dAz_dr_part_inline(dAz_dr, r, dV, v_z):
+def get_dAz_dr_inline(dAz_dr, r, dV, v_z):
     Nr = r.size
     for ir in prange(Nr):
-        dAz_dr[ir] = (dV * v_z / (1-v_z) * (r <= r[ir]) ).sum() / r[ir]
+        dAz_dr[ir] = (dV * v_z / (1.-v_z) * (r <= r[ir]) ).sum() / r[ir]
 
     return dAz_dr
 

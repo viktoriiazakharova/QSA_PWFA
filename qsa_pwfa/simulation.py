@@ -51,8 +51,9 @@ class Simulation:
         """
         Gaussian beam density distribution
         """
-        val = self.n_b * np.exp(-(ksi-self.ksi0)**2 / 2 / self.R_xi**2 )\
-           * np.exp(-r**2 / (2 * self.R_b**2))
+        val = self.n_b * \
+            np.exp( -0.5 * (ksi-self.ksi0)**2 / self.R_xi**2 ) * \
+            np.exp( -0.5 * r**2 / self.R_b**2)
 
         return val
 
@@ -60,8 +61,9 @@ class Simulation:
         """
         Gaussian beam density distribution integrated over `r`
         """
-        val = self.n_b * np.exp(-(ksi-self.ksi0)**2 / 2 / self.R_xi**2)\
-        * self.R_b**2 * ( 1. - np.exp(-r**2 / 2 / self.R_b**2 ) )
+        val = self.n_b * \
+            np.exp( -0.5 * (ksi-self.ksi0)**2 / self.R_xi**2) * \
+            self.R_b**2 * ( 1. - np.exp( -0.5 * r**2 / self.R_b**2 ) )
 
         return val
 
@@ -72,8 +74,10 @@ class Simulation:
         self.v_z[:] = (self.T - 1.) / (self.T + 1.)
 
     def get_dAz_dr(self, xi_i):
-        self.dAz_dr = get_dAz_dr_part_inline(self.dAz_dr, self.r, self.dV, self.v_z)
-        self.dAz_dr +=  self.gaussian_integrate(self.r, xi_i)/ self.r
+        self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r, self.dV, self.v_z)
+
+        # adding the beam field
+        self.dAz_dr += self.gaussian_integrate(self.r, xi_i)/ self.r
 
     def get_dPsi_dr(self):
         self.dPsi_dr = get_dPsi_dr_inline(self.dPsi_dr, self.r, self.dV)
@@ -82,7 +86,7 @@ class Simulation:
         self.Psi = get_psi_inline(self.Psi, r_loc, self.r0, self.dV)
 
     def get_force(self):
-        self.F[:] = self.dPsi_dr + (1 - self.v_z) * self.dAz_dr
+        self.F[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
 
     def advance_xi(self, i_xi, correct_Psi=True):
 
@@ -94,7 +98,7 @@ class Simulation:
         self.get_dPsi_dr()
         self.get_force()
 
-        self.p_perp_next[:] = self.p_perp + self.dxi * self.F / (1 - self.v_z)
+        self.p_perp_next[:] = self.p_perp + self.dxi * self.F / (1. - self.v_z)
 
         if correct_Psi:
             self.r_half[:] = self.r + 0.5 * self.dxi * \
