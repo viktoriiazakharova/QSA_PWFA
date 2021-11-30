@@ -18,9 +18,8 @@ def fix_crossing_axis_rp(r, p):
             p[j] = np.abs(p[j])
     return r, p
 
-
 @njit(parallel=True)
-def get_dPsi_dr_inline(dPsi_dr, r, dV):
+def get_dPsi_dr_unif_inline(dPsi_dr, r, r0, dV):
     Nr = r.size
     for ir in prange(Nr):
         dPsi_dr[ir] = -0.5  * r[ir] + \
@@ -28,6 +27,14 @@ def get_dPsi_dr_inline(dPsi_dr, r, dV):
 
     return dPsi_dr
 
+@njit(parallel=True)
+def get_dPsi_dr_inline(dPsi_dr, r, r0, dV):
+    Nr = r.size
+    for ir in prange(Nr):
+        dPsi_dr[ir] = (dV * ( (r <= r[ir]).astype(np.int8) - (r0 <= r[ir]) ) )\
+            .sum() / r[ir]
+
+    return dPsi_dr
 
 @njit(parallel=True)
 def get_dAz_dr_inline(dAz_dr, r, dV, v_z):

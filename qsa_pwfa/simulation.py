@@ -4,12 +4,12 @@ from .inline_methods import *
 
 class Simulation:
 
-    def __init__(self, L_xi, N_xi, L_r, N_r):
+    def __init__(self, L_xi, N_xi, L_r, N_r, dens_func=None):
 
-        self.init_grids(L_xi, N_xi, L_r, N_r)
+        self.init_grids(L_xi, N_xi, L_r, N_r, dens_func)
         self.allocate_data()
 
-    def init_grids(self, L_xi, N_xi, L_r, N_r):
+    def init_grids(self, L_xi, N_xi, L_r, N_r, dens_func):
         self.L_xi = L_xi
         self.N_xi = N_xi
         self.L_r = L_r
@@ -23,6 +23,12 @@ class Simulation:
 
         self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
         self.dV[0] = 0.5 * self.dr0**2
+
+        if dens_func is not None:
+            self.get_dPsi_dr_inline = get_dPsi_dr_inline
+            self.dV *= dens_func(self.r0 - 0.5*self.dr0)
+        else:
+            self.get_dPsi_dr_inline = get_dPsi_dr_unif_inline
 
     def allocate_data(self):
         self.r = self.r0.copy()
@@ -80,7 +86,8 @@ class Simulation:
         self.dAz_dr += self.gaussian_integrate(self.r, xi_i)/ self.r
 
     def get_dPsi_dr(self):
-        self.dPsi_dr = get_dPsi_dr_inline(self.dPsi_dr, self.r, self.dV)
+        self.dPsi_dr = self.get_dPsi_dr_inline(self.dPsi_dr, self.r, \
+                                               self.r0, self.dV)
 
     def get_Psi(self, r_loc):
         self.Psi = get_psi_inline(self.Psi, r_loc, self.r0, self.dV)
