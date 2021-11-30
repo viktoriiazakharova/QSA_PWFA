@@ -9,12 +9,6 @@ class Simulation:
         self.init_grids(L_xi, N_xi, L_r, N_r)
         self.allocate_data()
 
-    def init_beam(self, n_b, R_b, ksi0, R_xi):
-        self.n_b = n_b
-        self.R_b = R_b
-        self.ksi0 = ksi0
-        self.R_xi = R_xi
-
     def init_grids(self, L_xi, N_xi, L_r, N_r):
         self.L_xi = L_xi
         self.N_xi = N_xi
@@ -47,6 +41,12 @@ class Simulation:
         self.Psi = np.zeros_like(self.r0)
         self.F = np.zeros_like(self.r0)
 
+    def init_beam(self, n_b, R_b, ksi0, R_xi):
+        self.n_b = n_b
+        self.R_b = R_b
+        self.ksi0 = ksi0
+        self.R_xi = R_xi
+
     def gaussian_beam(self, r, ksi):
         """
         Gaussian beam density distribution
@@ -61,36 +61,28 @@ class Simulation:
         Gaussian beam density distribution integrated over `r`
         """
         val = self.n_b * np.exp(-(ksi-self.ksi0)**2 / 2 / self.R_xi**2)\
-        * self.R_b**2 * ( 1 - np.exp(-r**2 / 2 / self.R_b**2 ) )
+        * self.R_b**2 * ( 1. - np.exp(-r**2 / 2 / self.R_b**2 ) )
 
         return val
 
     def get_T(self):
-        for j in range(self.N_r):
-            self.T[j] = (1 + self.p_perp[j] ** 2) / (1 + self.Psi[j]) **2
+        self.T[:] = (1. + self.p_perp ** 2) / (1. + self.Psi) **2
 
     def get_v_z(self):
-         for j in range(self.N_r):
-                self.v_z[j] = (self.T[j] - 1) / (self.T[j] + 1)
+        self.v_z[:] = (self.T - 1.) / (self.T + 1.)
 
     def get_dAz_dr(self, xi_i):
         self.dAz_dr = get_dAz_dr_part_inline(self.dAz_dr, self.r, self.dV, self.v_z)
         self.dAz_dr +=  self.gaussian_integrate(self.r, xi_i)/ self.r
 
     def get_dPsi_dr(self):
-        for j in range(self.N_r):
-            self.dPsi_dr[j] = -0.5  * self.r[j] + sum_up_to_j( self.dV , j, self.r )/ self.r[j]
+        self.dPsi_dr = get_dPsi_dr_inline(self.dPsi_dr, self.r, self.dV)
 
     def get_Psi(self, r_loc):
         self.Psi = get_psi_inline(self.Psi, r_loc, self.r0, self.dV)
 
-    def get_Psi_2(self, r_loc):
-        Psi0 = (self.dV * np.log(r_loc / self.r0 )).sum()
-        self.Psi = get_psi_part_inline(self.Psi, r_loc, self.dV)
-        self.Psi += Psi0
-
     def get_force(self):
-        self.F = self.dPsi_dr + (1 - self.v_z) * self.dAz_dr
+        self.F[:] = self.dPsi_dr + (1 - self.v_z) * self.dAz_dr
 
     def advance_xi(self, i_xi, correct_Psi=True):
 
@@ -105,11 +97,12 @@ class Simulation:
         self.p_perp_next[:] = self.p_perp + self.dxi * self.F / (1 - self.v_z)
 
         if correct_Psi:
-            self.r_half[:] = self.r + 0.5*self.dxi * self.p_perp_next / (1 + self.Psi)
+            self.r_half[:] = self.r + 0.5 * self.dxi * \
+                self.p_perp_next / (1. + self.Psi)
             fix_crossing_axis_r(self.r_half)
             self.get_Psi(self.r_half)
 
-        self.r_next[:] = self.r + self.dxi * self.p_perp_next / (1 + self.Psi)
+        self.r_next[:] = self.r + self.dxi * self.p_perp_next / (1. + self.Psi)
 
         fix_crossing_axis_rp(self.r_next, self.p_perp_next)
 

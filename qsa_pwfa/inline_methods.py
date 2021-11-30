@@ -1,41 +1,56 @@
 from numba import njit, prange
 import numpy as np
 
-@njit
+@njit(parallel=True)
 def fix_crossing_axis_r(r):
     Nr = r.size
-    for j in range(Nr):
+    for j in prange(Nr):
         if r[j] < 0:
             r[j] = np.abs(r[j])
     return r
 
-@njit
+@njit(parallel=True)
 def fix_crossing_axis_rp(r, p):
     Nr = r.size
-    for j in range(Nr):
+    for j in prange(Nr):
         if r[j] < 0:
             r[j] = np.abs(r[j])
             p[j] = np.abs(p[j])
     return r, p
 
-@njit
-def sum_up_to_j( a, j, r_axis ):
-    Nr = r_axis.size
-    sum_result = 0
 
-    for l in range(Nr):
-        if (r_axis[l]<=r_axis[j]):
-            sum_result += a[l]
+@njit(parallel=True)
+def get_dPsi_dr_inline(dPsi_dr, r, dV):
+    Nr = r.size
+    for ir in prange(Nr):
+        dPsi_dr[ir] = -0.5  * r[ir] + \
+            (dV * (r <= r[ir]) ).sum() / r[ir]
 
-    return sum_result
+    return dPsi_dr
 
-@njit
-def sum_up_to_j_2( a, j, r_axis ):
-    Nr = r_axis.size
-    sum_result = (a * (r_axis<r_axis[j]) ).sum()
-    # sum_result = a[(r_axis<r_axis[j])].sum()
-    return sum_result
 
+@njit(parallel=True)
+def get_dAz_dr_part_inline(dAz_dr, r, dV, v_z):
+    Nr = r.size
+    for ir in prange(Nr):
+        dAz_dr[ir] = (dV * v_z / (1-v_z) * (r <= r[ir]) ).sum() / r[ir]
+
+    return dAz_dr
+
+@njit(parallel=True)
+def get_psi_inline( Psi, r, r0, dV):
+    N_r = int(r.size)
+
+    for j in prange(N_r):
+        Psi[j] = ( dV * \
+            ( ( (r[j] > r0).astype(np.int8) - (r[j] > r).astype(np.int8) ) * \
+              np.log(r0 / r[j]) +  \
+            (r > r[j]).astype(np.int8) * np.log(r / r0)  )).sum()
+
+    return Psi
+
+############ temp #########
+"""
 @njit(parallel=True)
 def get_psi_part_inline( Psi, r, dV):
     N_r = int(r.size)
@@ -46,73 +61,30 @@ def get_psi_part_inline( Psi, r, dV):
 
     return Psi
 
+@njit
+def sum_up_to_j_1( a, j, r_axis ):
+    Nr = r_axis.size
+    sum_result = 0
+
+    for l in range(Nr):
+#         sum_result += a[l]*(r_axis[l]<=r_axis[j])
+        if (r_axis[l]<=r_axis[j]):
+            sum_result += a[l]
+
+    return sum_result
+
 @njit(parallel=True)
-def get_psi_inline( Psi, r, r0, dV):
-    N_r = int(r.size)
+def get_dPsi_dr_inline_old( dPsi_dr, r, dV):
+    Nr = r.size
+    for ir in prange(Nr):
+        dPsi_dr[ir] = -0.5  * r[ir] + \
+            sum_up_to_j( dV, ir, r )/ r[ir]
 
-    for j in prange(N_r):
-        Psi[j] = ( dV * ( ( (r[j] > r0).astype(np.int32)  - (r[j] > r).astype(np.int32) ) * np.log(r0 / r[j]) +  \
-                         (r > r[j]).astype(np.int32) * np.log(r / r0)   )).sum()
-
-    return Psi
-
-@njit(parallel=True)
-def get_dAz_dr_part_inline( dAz_dr, r, dV, v_z):
-    N_r = int(r.size)
-
-    for j in prange(N_r):
-        dAz_dr[j] = sum_up_to_j( dV * v_z / (1-v_z), j, r )/ r[j]
-
-    return dAz_dr
+    return dPsi_dr
 
 @njit
-def slice_density_projection(r, wr, dr, Nr):
-    val = np.zeros(Nr)
+def sum_up_to_j( a, j, r_axis ):
+    sum_result = np.sum(a*(r_axis<= r_axis[j]))
+    return sum_result
 
-    N_rings = int(r.size)
-
-    for i_ring in range(N_rings):
-        r_i = r[i_ring]
-        ir_cell = int(np.floor(r_i/dr))
-        if ir_cell>Nr-2:
-            continue
-
-        s1 = r_i / dr - ir_cell
-        s0 = 1. - s1
-        val[ir_cell] += wr[i_ring] * s0
-        val[ir_cell+1] += wr[i_ring] * s1
-
-    return val
-
-def get_density(r_xi, vz_xi, dV, dr, Nr):
-
-    N_xi, N_rings = r_xi.shape
-
-    r_new = dr*np.arange(Nr)
-    dV_new = r_new * dr
-    dV_new[0] = dr**2
-
-    dens = np.zeros((N_xi, Nr))
-
-    for i_xi in prange(N_xi):
-        dens[i_xi] = slice_density_projection(r_xi[i_xi], dV/(1-vz_xi[i_xi]), dr, Nr)
-        dens[i_xi] /= dV_new
-
-    return dens
-
-def get_field(field_val, r_xi, vz_xi, dV, dr, Nr):
-
-    N_xi, N_rings = r_xi.shape
-
-    r_new = dr*np.arange(Nr)
-    dV_new = r_new * dr
-    dV_new[0] = dr**2
-
-    dens = np.zeros((N_xi, Nr))
-
-    for i_xi in prange(N_xi):
-        dens[i_xi] = slice_density_projection(r_xi[i_xi], \
-            dV * field_val[i_xi]/(1-vz_xi[i_xi]), dr, Nr)
-        dens[i_xi] /= dV_new
-
-    return dens
+"""
