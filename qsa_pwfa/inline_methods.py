@@ -43,7 +43,7 @@ def get_psi_inline( Psi, r, r0, dV):
 
     for j in prange(N_r):
         Psi[j] = ( dV * \
-            ( ( (r[j] > r0).astype(np.int8) - (r[j] > r).astype(np.int8) ) * \
+            ( ( (r0 <= r[j]).astype(np.int8) - (r <= r[j]).astype(np.int8) ) * \
               np.log(r0 / r[j]) +  \
             (r > r[j]).astype(np.int8) * np.log(r / r0)  )).sum()
 
