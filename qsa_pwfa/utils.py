@@ -9,7 +9,7 @@ def get_Psi_new_grid(Psi, r_grid, r, r0, dV):
         r_loc = r_grid[ir]
         Psi[ir] = ( dV * \
           ( \
-            ( (r_loc > r0).astype(np.int8) - (r_loc > r).astype(np.int8) ) * \
+            ( (r_loc >= r0).astype(np.int8) - (r_loc >= r).astype(np.int8) ) * \
               np.log( r0 / r_loc ) +  \
             (r > r_loc).astype(np.int8) * np.log( r / r0 ) ) \
           ).sum()
