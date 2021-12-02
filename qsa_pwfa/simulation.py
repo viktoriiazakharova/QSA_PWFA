@@ -5,11 +5,14 @@ from .inline_methods import *
 class Simulation:
 
     def __init__(self, L_xi, N_xi, L_r, N_r, dens_func=None):
-
         self.init_grids(L_xi, N_xi, L_r, N_r, dens_func)
         self.allocate_data()
 
     def init_grids(self, L_xi, N_xi, L_r, N_r, dens_func):
+        # iteration counter
+        self.i_xi = 0
+
+        # grid range and resolutions
         self.L_xi = L_xi
         self.N_xi = N_xi
         self.L_r = L_r
@@ -21,9 +24,11 @@ class Simulation:
         self.dr0 = L_r/N_r
         self.r0 = self.dr0 * np.arange(1,N_r+1)
 
+        # rings volumes corresponding to the grid
         self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
         self.dV[0] = 0.5 * self.dr0**2
 
+        # handle the non-uniform density
         if dens_func is not None:
             self.get_dPsi_dr_inline = get_dPsi_dr_inline
             self.dV *= dens_func(self.r0 - 0.5*self.dr0)
@@ -39,8 +44,8 @@ class Simulation:
         self.p_perp_next = np.zeros_like(self.r0)
 
         self.T = np.zeros_like(self.r0)
-
         self.v_z = np.zeros_like(self.r0)
+        self.gamma = np.zeros_like(self.r0)
 
         self.dAz_dr = np.zeros_like(self.r0)
         self.dPsi_dr = np.zeros_like(self.r0)
@@ -73,17 +78,16 @@ class Simulation:
 
         return val
 
-    def get_T(self):
-        self.T[:] = (1. + self.p_perp ** 2) / (1. + self.Psi) **2
-
-    def get_v_z(self):
-        self.v_z[:] = (self.T - 1.) / (self.T + 1.)
-
-    def get_dAz_dr(self, xi_i):
-        self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r, self.dV, self.v_z)
-
-        # adding the beam field
+    def add_beam_field(self, xi_i):
         self.dAz_dr += self.gaussian_integrate(self.r, xi_i)/ self.r
+
+    def get_motion_functions(self):
+        self.T[:] = (1. + self.p_perp ** 2) / (1. + self.Psi) **2
+        self.v_z[:] = (self.T - 1.) / (self.T + 1.)
+        self.gamma[:] = 0.5 * (1. + self.Psi) * (self.T + 1.)
+
+    def get_dAz_dr(self):
+        self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r, self.dV, self.v_z)
 
     def get_dPsi_dr(self):
         self.dPsi_dr = self.get_dPsi_dr_inline(self.dPsi_dr, self.r, \
@@ -95,14 +99,15 @@ class Simulation:
     def get_force(self):
         self.F[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
 
-    def advance_xi(self, i_xi, correct_Psi=True):
+    def advance_xi(self, correct_Psi=True):
 
         self.get_Psi(self.r)
-        self.get_T()
-        self.get_v_z()
-
-        self.get_dAz_dr(self.xi[i_xi])
+        self.get_motion_functions()
+        self.get_dAz_dr()
         self.get_dPsi_dr()
+
+        self.add_beam_field(self.xi[self.i_xi])
+
         self.get_force()
 
         self.p_perp_next[:] = self.p_perp + self.dxi * self.F / (1. - self.v_z)
@@ -114,8 +119,9 @@ class Simulation:
             self.get_Psi(self.r_half)
 
         self.r_next[:] = self.r + self.dxi * self.p_perp_next / (1. + self.Psi)
-
         fix_crossing_axis_rp(self.r_next, self.p_perp_next)
 
         self.r[:] = self.r_next
         self.p_perp[:] = self.p_perp_next
+
+        self.i_xi += 1
