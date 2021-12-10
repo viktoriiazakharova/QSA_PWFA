@@ -49,8 +49,13 @@ class Simulation:
 
         self.dAz_dr = np.zeros_like(self.r0)
         self.dPsi_dr = np.zeros_like(self.r0)
+        self.dp_perp_dxi = np.zeros_like(self.r0)
+        self.dr_dxi = np.zeros_like(self.r0) 
+        self.d2r_dxi2 = np.zeros_like(self.r0)
+        
         self.Psi = np.zeros_like(self.r0)
         self.F = np.zeros_like(self.r0)
+        
 
     def init_beam(self, n_b, R_b, ksi0, R_xi):
         self.n_b = n_b
@@ -96,9 +101,17 @@ class Simulation:
     def get_Psi(self, r_loc):
         self.Psi = get_psi_inline(self.Psi, r_loc, self.r0, self.dV)
 
-    def get_force(self):
+    def get_dp_perp_dxi(self):
         self.F[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
-
+        
+        self.dp_perp_dxi[:] = self.F / (1. - self.v_z)
+    
+    def get_dr_dxi(self):
+        self.dr_dxi[:] = self.p_perp_next / (1. + self.Psi)
+    
+    def get_d2r_dxi2(self):
+        # self.d2r_dxi2[:] = 
+    
     def advance_xi(self, correct_Psi=True):
 
         self.get_Psi(self.r)
@@ -110,15 +123,16 @@ class Simulation:
 
         self.get_force()
 
-        self.p_perp_next[:] = self.p_perp + self.dxi * self.F / (1. - self.v_z)
+        self.p_perp_next[:] = self.p_perp + self.dxi * self.dp_perp_dxi
 
         if correct_Psi:
-            self.r_half[:] = self.r + 0.5 * self.dxi * \
-                self.p_perp_next / (1. + self.Psi)
+            self.get_dr_dxi()
+            self.r_half[:] = self.r + 0.5 * self.dxi * self.dr_dxi
             fix_crossing_axis_r(self.r_half)
             self.get_Psi(self.r_half)
 
-        self.r_next[:] = self.r + self.dxi * self.p_perp_next / (1. + self.Psi)
+        self.get_dr_dxi()
+        self.r_next[:] = self.r + self.dxi * self.dr_dxi
         fix_crossing_axis_rp(self.r_next, self.p_perp_next)
 
         self.r[:] = self.r_next
