@@ -111,6 +111,7 @@ class Simulation:
     
     def get_d2r_dxi2(self):
         # self.d2r_dxi2[:] = 
+        pass
     
     def advance_xi(self, correct_Psi=True):
 
@@ -121,7 +122,7 @@ class Simulation:
 
         self.add_beam_field(self.xi[self.i_xi])
 
-        self.get_force()
+        self.get_dp_perp_dxi()
 
         self.p_perp_next[:] = self.p_perp + self.dxi * self.dp_perp_dxi
 
