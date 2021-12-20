@@ -103,15 +103,16 @@ class Simulation:
 
     def get_dp_perp_dxi(self):
         self.F[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
-        
+
         self.dp_perp_dxi[:] = self.F / (1. - self.v_z)
-    
+
     def get_dr_dxi(self):
         self.dr_dxi[:] = self.p_perp_next / (1. + self.Psi)
-    
+
     def get_d2r_dxi2(self):
-        # self.d2r_dxi2[:] = 
-    
+        # self.d2r_dxi2[:] =
+        pass
+
     def advance_xi(self, correct_Psi=True):
 
         self.get_Psi(self.r)
@@ -121,8 +122,7 @@ class Simulation:
 
         self.add_beam_field(self.xi[self.i_xi])
 
-        self.get_force()
-
+        self.get_dp_perp_dxi()
         self.p_perp_next[:] = self.p_perp + self.dxi * self.dp_perp_dxi
 
         if correct_Psi:

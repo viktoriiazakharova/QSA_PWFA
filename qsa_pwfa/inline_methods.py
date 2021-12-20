@@ -23,7 +23,7 @@ def get_dPsi_dr_unif_inline(dPsi_dr, r, r0, dV):
     Nr = r.size
     for ir in prange(Nr):
         dPsi_dr[ir] = -0.5  * r[ir] + \
-            (dV * (r <= r[ir]) ).sum() / r[ir]
+            np.sum(dV * (r <= r[ir]) ) / r[ir]
 
     return dPsi_dr
 
@@ -31,8 +31,8 @@ def get_dPsi_dr_unif_inline(dPsi_dr, r, r0, dV):
 def get_dPsi_dr_inline(dPsi_dr, r, r0, dV):
     Nr = r.size
     for ir in prange(Nr):
-        dPsi_dr[ir] = (dV * ( (r <= r[ir]).astype(np.int8) - (r0 <= r[ir]) ) )\
-            .sum() / r[ir]
+        dPsi_dr[ir] = np.sum(dV * ( (r <= r[ir]).astype(np.int8) \
+            - (r0 <= r[ir]).astype(np.int8) ) ) / r[ir]
 
     return dPsi_dr
 
@@ -40,7 +40,7 @@ def get_dPsi_dr_inline(dPsi_dr, r, r0, dV):
 def get_dAz_dr_inline(dAz_dr, r, dV, v_z):
     Nr = r.size
     for ir in prange(Nr):
-        dAz_dr[ir] = (dV * v_z / (1.-v_z) * (r <= r[ir]) ).sum() / r[ir]
+        dAz_dr[ir] = np.sum(dV * v_z / (1.-v_z) * (r <= r[ir]) ) / r[ir]
 
     return dAz_dr
 
@@ -49,9 +49,9 @@ def get_psi_inline( Psi, r, r0, dV):
     N_r = int(r.size)
 
     for j in prange(N_r):
-        Psi[j] = ( dV * \
+        Psi[j] = np.sum( dV * \
             ( ( (r0 <= r[j]).astype(np.int8) - (r <= r[j]).astype(np.int8) ) * \
               np.log(r0 / r[j]) +  \
-            (r > r[j]).astype(np.int8) * np.log(r / r0)  )).sum()
+            (r > r[j]).astype(np.int8) * np.log(r / r0)  ))
 
     return Psi
