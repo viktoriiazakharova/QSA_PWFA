@@ -123,6 +123,7 @@ class Simulation:
         self.add_beam_field(self.xi[self.i_xi])
 
         self.get_dp_perp_dxi()
+
         self.p_perp_next[:] = self.p_perp + self.dxi * self.dp_perp_dxi
 
         if correct_Psi:
