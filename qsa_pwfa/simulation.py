@@ -41,6 +41,7 @@ class Simulation:
         self.r_next = self.r0.copy()
 
         self.p_perp = np.zeros_like(self.r0)
+        self.p_perp_half = np.zeros_like(self.r0)
         self.p_perp_next = np.zeros_like(self.r0)
 
         self.T = np.zeros_like(self.r0)
@@ -48,14 +49,14 @@ class Simulation:
         self.gamma = np.zeros_like(self.r0)
 
         self.dAz_dr = np.zeros_like(self.r0)
+        self.dAz_dr_beam  = np.zeros_like(self.r0)
         self.dPsi_dr = np.zeros_like(self.r0)
         self.dp_perp_dxi = np.zeros_like(self.r0)
-        self.dr_dxi = np.zeros_like(self.r0) 
+        self.dr_dxi = np.zeros_like(self.r0)
         self.d2r_dxi2 = np.zeros_like(self.r0)
-        
+
         self.Psi = np.zeros_like(self.r0)
         self.F = np.zeros_like(self.r0)
-        
 
     def init_beam(self, n_b, R_b, ksi0, R_xi):
         self.n_b = n_b
@@ -83,11 +84,14 @@ class Simulation:
 
         return val
 
-    def add_beam_field(self, xi_i):
-        self.dAz_dr += self.gaussian_integrate(self.r, xi_i)/ self.r
+    def get_beam_field(self, xi_i):
+        self.dAz_dr_beam = self.gaussian_integrate(self.r, xi_i)/ self.r
 
-    def get_motion_functions(self):
-        self.T[:] = (1. + self.p_perp ** 2) / (1. + self.Psi) **2
+    def add_beam_field(self):
+        self.dAz_dr += self.dAz_dr_beam       
+        
+    def get_motion_functions(self, p_perp):
+        self.T[:] = (1. + p_perp ** 2) / (1. + self.Psi) ** 2
         self.v_z[:] = (self.T - 1.) / (self.T + 1.)
         self.gamma[:] = 0.5 * (1. + self.Psi) * (self.T + 1.)
 
@@ -113,17 +117,24 @@ class Simulation:
         # self.d2r_dxi2[:] =
         pass
 
-    def advance_xi(self, correct_Psi=True):
+    def advance_xi(self, correct_Psi=True, correct_vz=True):
 
-        self.get_Psi(self.r)
-        self.get_motion_functions()
-        self.get_dAz_dr()
         self.get_dPsi_dr()
+        self.get_Psi(self.r)
 
-        self.add_beam_field(self.xi[self.i_xi])
+        self.get_motion_functions(self.p_perp)
+        self.get_dAz_dr()
+        self.get_beam_field(self.xi[self.i_xi])
+        self.add_beam_field()
+
+        if correct_vz:
+            self.get_dp_perp_dxi()
+            self.p_perp_half[:] = self.p_perp + 0.5 * self.dxi * self.dp_perp_dxi
+            self.get_motion_functions(self.p_perp_half)
+            self.get_dAz_dr()
+            self.add_beam_field()
 
         self.get_dp_perp_dxi()
-
         self.p_perp_next[:] = self.p_perp + self.dxi * self.dp_perp_dxi
 
         if correct_Psi:
