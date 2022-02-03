@@ -55,3 +55,14 @@ def get_psi_inline( Psi, r, r0, dV):
             (r > r[j]).astype(np.int8) * np.log(r / r0)  ))
 
     return Psi
+
+@njit(parallel=True)
+def get_dAr_dxi_inline(dAr_dxi, r, dr_dxi, d2r_dxi2, dV):
+    Nr = r.size
+    for ir in prange(Nr):
+        dAr_dxi[ir] = 1/r[ir] * np.sum ( dV * (dr_dxi**2 * (r <= r[ir]) \
+                          + 0.5 * (d2r_dxi2 / r - (dr_dxi / r) ** 2) * (r[ir]**2 * (r >= r[ir]) + r**2 * (r <= r[ir]))))
+                                               
+    return dAr_dxi
+    
+    

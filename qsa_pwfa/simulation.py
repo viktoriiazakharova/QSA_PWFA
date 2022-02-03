@@ -52,8 +52,14 @@ class Simulation:
         self.dAz_dr_beam  = np.zeros_like(self.r0)
         self.dPsi_dr = np.zeros_like(self.r0)
         self.dp_perp_dxi = np.zeros_like(self.r0)
+        
         self.dr_dxi = np.zeros_like(self.r0)
+        self.dr_dxi_prev = np.zeros_like(self.r0)
+        self.dr_dxi_half = np.zeros_like(self.r0)
+        
         self.d2r_dxi2 = np.zeros_like(self.r0)
+        self.dAr_dxi = np.zeros_like(self.r0)
+        
 
         self.Psi = np.zeros_like(self.r0)
         self.F = np.zeros_like(self.r0)
@@ -114,8 +120,11 @@ class Simulation:
         self.dr_dxi[:] = self.p_perp_next / (1. + self.Psi)
 
     def get_d2r_dxi2(self):
-        # self.d2r_dxi2[:] =
-        pass
+        self.d2r_dxi2[:] = (self.dr_dxi[:] - self.dr_dxi_prev[:]) / self.dxi
+        
+    def get_dAr_dxi(self):
+        self.dAr_dxi = get_dAr_dxi_inline(self.dAr_dxi, self.r, self.dr_dxi_half, self.d2r_dxi2, self.dV)
+        
 
     def advance_xi(self, correct_Psi=True, correct_vz=True):
 
@@ -143,7 +152,15 @@ class Simulation:
             fix_crossing_axis_r(self.r_half)
             self.get_Psi(self.r_half)
 
+            
         self.get_dr_dxi()
+        self.get_d2r_dxi2()
+        
+        self.dr_dxi_half[:] = 0.5 * (self.dr_dxi +  self.dr_dxi_prev)
+        
+        self.get_dAr_dxi()
+        self.dr_dxi_prev[:] = self.dr_dxi
+        
         self.r_next[:] = self.r + self.dxi * self.dr_dxi
         fix_crossing_axis_rp(self.r_next, self.p_perp_next)
 
