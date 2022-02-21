@@ -164,14 +164,14 @@ class Simulation:
             self.get_dAr_dxi()
             self.get_force_full()
 
-            abs_err = np.abs(self.F-Force_prev).sum()
-            ref_prev = np.abs(Force_prev).sum()
-            ref_new = np.abs(self.F).sum()
+            err_abs = np.abs(self.F-Force_prev).sum()
+            ref_intergal_prev = np.abs(Force_prev).sum()
+            ref_intergal_new = np.abs(self.F).sum()
 
-            if ref_prev==0.0 and ref_new==0.0:
+            if ref_intergal_prev==0.0 and ref_intergal_new==0.0:
                 err_rel = 0.0
             else:
-                err_rel = 2 * abs_err / (ref_prev + ref_new)
+                err_rel = 2 * err_abs / (ref_intergal_prev + ref_intergal_new)
 
             Force_prev = self.F.copy()
 
