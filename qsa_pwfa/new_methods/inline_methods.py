@@ -63,7 +63,6 @@ def get_dpsi_dxi_inline( dpsi_dxi, r, r0, dr_dxi, dV):
 
     for j in prange(N_r):
         dpsi_dxi[j] = np.sum( dV * dr_dxi * (r > r[j]) / r)
-        
 
     return dpsi_dxi
 
@@ -72,9 +71,10 @@ def get_dpsi_dxi_inline( dpsi_dxi, r, r0, dr_dxi, dV):
 def get_dAr_dxi_inline(dAr_dxi, r, dr_dxi, d2r_dxi2, dV):
     Nr = r.size
     for ir in prange(Nr):
-        dAr_dxi[ir] = 1/r[ir] * np.sum ( dV * (dr_dxi**2 * (r <= r[ir]) \
-                          + 0.5 * (d2r_dxi2 / r - (dr_dxi / r) ** 2) * (r[ir]**2 * (r >= r[ir]) + r**2 * (r <= r[ir]))))
-                                               
+        dAr_dxi[ir] = 1/r[ir] * np.sum ( dV * \
+            ( dr_dxi**2 * (r <= r[ir]) \
+              + 0.5 * (d2r_dxi2 / r - (dr_dxi / r) ** 2) \
+                * ( r[ir]**2 * (r >= r[ir]) + r**2 * (r <= r[ir]) )
+            ) )
+
     return dAr_dxi
-    
-    

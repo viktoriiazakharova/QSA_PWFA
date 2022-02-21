@@ -147,6 +147,7 @@ class Simulation:
 
         self.get_d2r_dxi2()
         self.get_dAr_dxi()
+        self.get_force_reduced()
         self.get_force_full()
 
         self.get_d2r_dxi2()
