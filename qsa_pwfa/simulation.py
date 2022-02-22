@@ -152,15 +152,14 @@ class Simulation:
             fix_crossing_axis_r(self.r_half)
             self.get_Psi(self.r_half)
 
-            
         self.get_dr_dxi()
         self.get_d2r_dxi2()
-        
+
         self.dr_dxi_half[:] = 0.5 * (self.dr_dxi +  self.dr_dxi_prev)
-        
+
         self.get_dAr_dxi()
         self.dr_dxi_prev[:] = self.dr_dxi
-        
+
         self.r_next[:] = self.r + self.dxi * self.dr_dxi
         fix_crossing_axis_rp(self.r_next, self.p_perp_next)
 

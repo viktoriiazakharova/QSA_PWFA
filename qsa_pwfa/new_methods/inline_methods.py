@@ -2,14 +2,6 @@ from numba import njit, prange
 import numpy as np
 
 @njit(parallel=True)
-def fix_crossing_axis_r(r):
-    Nr = r.size
-    for j in prange(Nr):
-        if r[j] < 0:
-            r[j] = np.abs(r[j])
-    return r
-
-@njit(parallel=True)
 def fix_crossing_axis_rp(r, p):
     Nr = r.size
     for j in prange(Nr):

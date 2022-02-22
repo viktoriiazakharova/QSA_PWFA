@@ -103,15 +103,14 @@ class Simulation:
     def get_Psi(self, r_loc):
         self.Psi = get_psi_inline(self.Psi, r_loc, self.r0, self.dV)
 
-##############
-
     def get_force_reduced(self):
         self.F_part[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
 
-    def get_force_full(self):
-        self.F[:] = self.F_part + (1. - self.v_z) * self.dAr_dxi
-
-##############
+    def get_force_full(self, add_mag_force):
+        if add_mag_force:
+            self.F[:] = self.F_part + (1. - self.v_z) * self.dAr_dxi
+        else:
+            self.F[:] = self.F_part
 
     def get_p_perp(self):
         self.p_perp[:] = self.dr_dxi * (1. + self.Psi)
@@ -128,13 +127,15 @@ class Simulation:
         self.dpsi_dxi = get_dpsi_dxi_inline(self.dpsi_dxi, self.r, self.r0,
                                             self.dr_dxi, self.dV)
 
-    def advance_xi(self, iter_max=100, rel_err_max=1e-2):
+    def advance_xi(self, iter_max=100, rel_err_max=1e-2, add_mag_force=True):
+
         # d_Ar/d_xi at i_xi-1 (had it from previous step?)
         self.get_dAr_dxi()
 
-        # advance r and r' at i_xi
+        # advance r and r' at i_xi and fix axis crossing
         self.r[:] = self.r + self.dxi * self.dr_dxi
         self.dr_dxi[:] = self.dr_dxi +  self.d2r_dxi2 * self.dxi
+        fix_crossing_axis_rp(self.r, self.dr_dxi)
 
         # get Psi, d_Psi/d_r, d_Psi/d_xi, d_Az/d_r, p_r, v_z
         # at i_xi
@@ -151,8 +152,7 @@ class Simulation:
         self.get_force_reduced()
 
         # get full force F* -- with d_Ar/d_xi at i_xi-1
-        self.get_force_full()
-        Force_prev = self.F.copy()
+        self.get_force_full(add_mag_force=add_mag_force)
 
         err_rel = 1.0
         i_conv = 0
@@ -160,9 +160,11 @@ class Simulation:
         while (err_rel>rel_err_max) and (i_conv<iter_max):
             i_conv +=1
 
+            Force_prev = self.F.copy()
+
             self.get_d2r_dxi2()
             self.get_dAr_dxi()
-            self.get_force_full()
+            self.get_force_full(add_mag_force=add_mag_force)
 
             err_abs = np.abs(self.F-Force_prev).sum()
             ref_intergal_prev = np.abs(Force_prev).sum()
@@ -173,10 +175,8 @@ class Simulation:
             else:
                 err_rel = 2 * err_abs / (ref_intergal_prev + ref_intergal_new)
 
-            Force_prev = self.F.copy()
-
-        print(f"reached error {err_rel:g} in {i_conv} iterations")
+        if iter_max>0:
+            print(f"reached error {err_rel:g} in {i_conv} iterations")
 
         self.get_d2r_dxi2()
-        fix_crossing_axis_rp(self.r, self.p_perp)
         self.i_xi += 1
