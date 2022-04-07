@@ -4,7 +4,8 @@ from .inline_methods import *
 
 class Simulation:
 
-    def __init__(self, L_xi, N_xi, L_r, N_r, dens_func=None):
+    def __init__(self, L_xi, N_xi, L_r, N_r, dens_func=None, verbose=False):
+        self.verbose = verbose
         self.init_grids(L_xi, N_xi, L_r, N_r, dens_func)
         self.allocate_data()
 
@@ -127,7 +128,7 @@ class Simulation:
         self.dpsi_dxi = get_dpsi_dxi_inline(self.dpsi_dxi, self.r, self.r0,
                                             self.dr_dxi, self.dV)
 
-    def advance_xi(self, iter_max=100, rel_err_max=1e-2, add_mag_force=True):
+    def advance_xi(self, iter_max=100, rel_err_max=1e-2, mixing_factor=0.1, add_mag_force=True):
 
         # d_Ar/d_xi at i_xi-1 (had it from previous step?)
         self.get_dAr_dxi()
@@ -140,13 +141,15 @@ class Simulation:
         # get Psi, d_Psi/d_r, d_Psi/d_xi, d_Az/d_r, p_r, v_z
         # at i_xi
         self.get_Psi(self.r)
+        self.get_p_perp()
+        self.get_motion_functions(self.p_perp)
+
         self.get_dPsi_dr()
         self.get_dpsi_dxi()
+        
         self.get_dAz_dr()
         self.get_beam_field(self.xi[self.i_xi])
         self.add_beam_field()
-        self.get_p_perp()
-        self.get_motion_functions(self.p_perp)
 
         # get reduced (e.s.) force at i_xi
         self.get_force_reduced()
@@ -158,11 +161,13 @@ class Simulation:
         i_conv = 0
 
         while (err_rel>rel_err_max) and (i_conv<iter_max):
-            i_conv +=1
+            i_conv += 1
 
             Force_prev = self.F.copy()
+            d2r_dxi2_tmp = self.d2r_dxi2.copy()
 
             self.get_d2r_dxi2()
+            self.d2r_dxi2 = mixing_factor*self.d2r_dxi2 + (1-mixing_factor)*d2r_dxi2_tmp
             self.get_dAr_dxi()
             self.get_force_full(add_mag_force=add_mag_force)
 
@@ -175,7 +180,7 @@ class Simulation:
             else:
                 err_rel = 2 * err_abs / (ref_intergal_prev + ref_intergal_new)
 
-        if iter_max>0:
+        if iter_max>0 and self.verbose:
             print(f"reached error {err_rel:g} in {i_conv} iterations")
 
         self.get_d2r_dxi2()

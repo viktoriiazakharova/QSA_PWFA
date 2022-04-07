@@ -64,6 +64,26 @@ def get_dAr_dxi_inline(dAr_dxi, r, dr_dxi, d2r_dxi2, dV):
             dV * (dr_dxi**2 * (r <= r[ir]) \
             + 0.5 * (d2r_dxi2 / r - (dr_dxi / r) ** 2) \
             * (r[ir]**2 * (r >= r[ir]) + r**2 * (r <= r[ir]))))
+        
+        dAr_dxi[ir] = - dAr_dxi[ir]
 
     return dAr_dxi
 
+@njit(parallel=True)
+def get_dpsi_dxi_inline( dpsi_dxi, r, r0, dr_dxi, dV):
+    N_r = int(r.size)
+
+    for j in prange(N_r):
+        dpsi_dxi[j] = np.sum( dV * dr_dxi * (r > r[j]) / r)
+
+    return dpsi_dxi
+
+
+@njit(parallel=True)
+def get_d2psi_dxi2_inline( d2psi_dxi2, r, r0, dr_dxi, d2r_dxi2, dV):
+    N_r = int(r.size)
+
+    for j in prange(N_r):
+        d2psi_dxi2[j] = np.sum( dV * (r > r[j]) * (d2r_dxi2 / r - (dr_dxi / r) ** 2))
+
+    return d2psi_dxi2

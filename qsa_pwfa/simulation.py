@@ -59,6 +59,8 @@ class Simulation:
 
         self.d2r_dxi2 = np.zeros_like(self.r0)
         self.dAr_dxi = np.zeros_like(self.r0)
+        self.dpsi_dxi = np.zeros_like(self.r0)
+        self.d2psi_dxi2 = np.zeros_like(self.r0)
 
         self.Psi = np.zeros_like(self.r0)
         self.F = np.zeros_like(self.r0)
@@ -98,7 +100,8 @@ class Simulation:
         self.gamma[:] = 0.5 * (1. + self.Psi) * (self.T + 1.)
 
     def get_dAz_dr(self):
-        self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r, self.dV, self.v_z)
+        # self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r, self.dV, self.v_z)
+        self.dAz_dr[:] = 0
 
     def add_beam_field(self):
         self.dAz_dr += self.dAz_dr_beam
@@ -110,6 +113,7 @@ class Simulation:
 
     def get_Psi(self, r_loc):
         self.Psi = get_psi_inline(self.Psi, r_loc, self.r0, self.dV)
+        #self.Psi[:]=0
 
     def get_dp_perp_dxi(self):
         #self.F[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
@@ -119,6 +123,7 @@ class Simulation:
 
     def get_dr_dxi(self):
         self.dr_dxi[:] = self.p_perp_next / (1. + self.Psi)
+        #self.dr_dxi[:] = self.p_perp_next
 
     def get_d2r_dxi2(self):
         self.d2r_dxi2[:] = (self.dr_dxi[:] - self.dr_dxi_prev[:]) / self.dxi
@@ -127,8 +132,17 @@ class Simulation:
         self.dAr_dxi = get_dAr_dxi_inline(self.dAr_dxi, self.r,
                                           self.dr_dxi_half, self.d2r_dxi2,
                                           self.dV)
+        
+    def get_dpsi_dxi(self):
+        self.dpsi_dxi = get_dpsi_dxi_inline(self.dpsi_dxi, self.r, self.r0,
+                                            self.dr_dxi, self.dV)
+        
+       
+    def get_d2psi_dxi2(self):
+        self.d2psi_dxi2 = get_d2psi_dxi2_inline(self.d2psi_dxi2, self.r, self.r0,
+                                            self.dr_dxi, self.d2r_dxi2, self.dV)
 
-    def advance_xi(self, correct_Psi=True, correct_vz=True):
+    def advance_xi(self, correct_Psi=False, correct_vz=False):
 
         self.get_dPsi_dr()
         self.get_Psi(self.r)
@@ -158,10 +172,12 @@ class Simulation:
 
         self.get_dr_dxi()
         self.get_d2r_dxi2()
+        self.get_dpsi_dxi()
+        self.get_d2psi_dxi2()
 
         self.dr_dxi_half[:] = 0.5 * (self.dr_dxi +  self.dr_dxi_prev)
 
-        #### self.get_dAr_dxi()
+        self.get_dAr_dxi()
         self.dr_dxi_prev[:] = self.dr_dxi
 
         self.r_next[:] = self.r + self.dxi * self.dr_dxi

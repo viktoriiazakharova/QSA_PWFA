@@ -68,5 +68,7 @@ def get_dAr_dxi_inline(dAr_dxi, r, dr_dxi, d2r_dxi2, dV):
               + 0.5 * (d2r_dxi2 / r - (dr_dxi / r) ** 2) \
                 * ( r[ir]**2 * (r >= r[ir]) + r**2 * (r <= r[ir]) )
             ) )
+        dAr_dxi[ir] = - dAr_dxi[ir]
+        
 
     return dAr_dxi
