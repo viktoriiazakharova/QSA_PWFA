@@ -10,9 +10,9 @@ class Simulation:
 
         self.verbose = verbose
         self.particle_boundary = particle_boundary
+        self.beams = []
         self.init_grids(L_xi, N_xi, L_r, N_r, dens_func)
         self.allocate_data()
-        self.beams = []
 
     def add_beam(self, beam):
         self.beams.append(beam)
@@ -61,6 +61,7 @@ class Simulation:
 
         self.dr_dxi = np.zeros_like(self.r0)
         self.d2r_dxi2 = np.zeros_like(self.r0)
+        self.d2r_dxi2_prev = np.zeros_like(self.r0)
 
         self.F = np.zeros_like(self.r0)
         self.F_part = np.zeros_like(self.r0)
@@ -108,23 +109,17 @@ class Simulation:
 
     def advance_xi(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05):
 
-        # get Psi, d_Psi/d_r, d_Psi/d_xi, d_Az/d_r, p_r, v_z
-        # at i_xi
         self.get_Psi( self.r )
-        self.get_p_perp( self.dr_dxi, self.Psi )
-        self.get_vz( self.p_perp, self.Psi )
-
         self.get_dPsi_dr( self.r )
         self.get_dPsi_dxi(self.r, self.dr_dxi)
+
+        self.get_p_perp( self.dr_dxi, self.Psi )
+        self.get_vz( self.p_perp, self.Psi )
 
         self.get_dAz_dr( self.r, self.v_z )
         self.add_beams_field( self.xi[self.i_xi], self.r)
 
-        # get reduced (e.s.) force at i_xi
         self.get_force_reduced()
-
-        # get full force F* -- with d_Ar/d_xi at i_xi-1
-        # self.get_force_full()
 
         err_rel = 1.0
         i_conv = 0
@@ -133,17 +128,17 @@ class Simulation:
         while (err_rel>rel_err_max) and (i_conv<iter_max):
             i_conv += 1
 
-            d2r_dxi2_prev = self.d2r_dxi2.copy()
+            self.d2r_dxi2_prev[:] = self.d2r_dxi2
 
             self.get_dAr_dxi( self.r, self.dr_dxi, self.d2r_dxi2 )
             self.get_force_full()
 
             self.get_d2r_dxi2()
             self.d2r_dxi2 = mixing_factor * self.d2r_dxi2 + \
-                                (1.0 - mixing_factor) * d2r_dxi2_prev
+                                (1.0 - mixing_factor) * self.d2r_dxi2_prev
 
-            err_abs = np.abs( self.d2r_dxi2 - d2r_dxi2_prev ).sum()
-            ref_intergal_prev = np.abs(d2r_dxi2_prev).sum()
+            err_abs = np.abs( self.d2r_dxi2 - self.d2r_dxi2_prev ).sum()
+            ref_intergal_prev = np.abs(self.d2r_dxi2_prev).sum()
             ref_intergal_new = np.abs(self.d2r_dxi2).sum()
 
             if ref_intergal_prev==0.0 and ref_intergal_new==0.0:
@@ -160,8 +155,8 @@ class Simulation:
                   f"at i_xi={self.i_xi} (xi={self.xi[self.i_xi]})")
 
         # advance r and r' at i_xi and fix axis crossing
-        self.r[:] = self.r + self.dxi * self.dr_dxi
-        self.dr_dxi[:] = self.dr_dxi + self.d2r_dxi2 * self.dxi
+        self.dr_dxi += 0.5 * self.d2r_dxi2 * self.dxi
+        self.r += self.dxi * self.dr_dxi
+        self.dr_dxi += 0.5 * self.d2r_dxi2 * self.dxi
         fix_crossing_axis_rp( self.r, self.dr_dxi )
-
         self.i_xi += 1
