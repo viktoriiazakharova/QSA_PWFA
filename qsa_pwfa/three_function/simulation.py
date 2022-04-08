@@ -5,9 +5,11 @@ from .inline_methods import *
 class Simulation:
 
     def __init__(self, L_xi, N_xi, L_r, N_r,
-                 dens_func=None, verbose=0):
+                 dens_func=None, verbose=1,
+                 particle_boundary=1):
 
         self.verbose = verbose
+        self.particle_boundary = particle_boundary
         self.init_grids(L_xi, N_xi, L_r, N_r, dens_func)
         self.allocate_data()
         self.beams = []
@@ -93,7 +95,8 @@ class Simulation:
 
     def get_force_full(self):
         self.F[:] = self.F_part + (1. - self.v_z) * self.dAr_dxi
-        self.F *= ( self.r<=self.r0.max() )
+        if self.particle_boundary == 1:
+            self.F *= ( self.r<=self.r0.max() )
 
     def get_d2r_dxi2(self):
         self.d2r_dxi2[:] = ( self.F / (1. - self.v_z) \
