@@ -67,11 +67,8 @@ class Simulation:
         self.F_part = np.zeros_like(self.r0)
 
     def add_beams_field(self, xi_i, r):
-        self.dAz_dr_beams[:] = 0.0
         for beam in self.beams:
-            self.dAz_dr_beams += beam.gaussian_integrate(r, xi_i)/ r
-
-        self.dAz_dr += self.dAz_dr_beams
+            self.dAz_dr += beam.gaussian_integrate(r, xi_i)/ r
 
     def get_vz(self, p_perp, Psi):
         self.T[:] = (1. + p_perp ** 2) / (1. + Psi) ** 2
@@ -111,16 +108,6 @@ class Simulation:
                                             dr_dxi, self.dV)
 
     def advance_xi(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05):
-
-        # d_Ar/d_xi at i_xi-1 (had it from previous step?)
-        self.get_dAr_dxi(self.r, self.dr_dxi, self.d2r_dxi2)
-
-        # advance r and r' at i_xi
-        self.r[:] = self.r + self.dxi * self.dr_dxi
-        self.dr_dxi[:] = self.dr_dxi + self.d2r_dxi2 * self.dxi
-
-        # fix axis crossing
-        fix_crossing_axis_rp( self.r, self.dr_dxi )
 
         # get Psi, d_Psi/d_r, d_Psi/d_xi, d_Az/d_r, p_r, v_z
         # at i_xi
@@ -172,5 +159,16 @@ class Simulation:
         if self.verbose>1 and iter_max>0:
             print(f"reached error {err_rel:g} in {i_conv} iterations")
 
-        self.get_d2r_dxi2()
+
+        # d_Ar/d_xi at i_xi-1 (had it from previous step?)
+        # self.get_dAr_dxi(self.r, self.dr_dxi, self.d2r_dxi2)
+
+        # advance r and r' at i_xi
+        # self.get_d2r_dxi2()
+        self.r[:] = self.r + self.dxi * self.dr_dxi
+        self.dr_dxi[:] = self.dr_dxi + self.d2r_dxi2 * self.dxi
+
+        # fix axis crossing
+        fix_crossing_axis_rp( self.r, self.dr_dxi )
+
         self.i_xi += 1
