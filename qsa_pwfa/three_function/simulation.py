@@ -54,7 +54,6 @@ class Simulation:
 
         self.dAr_dxi = np.zeros_like(self.r0)
         self.dAz_dr = np.zeros_like(self.r0)
-        self.dAz_dr_beams  = np.zeros_like(self.r0)
 
         self.Psi = np.zeros_like(self.r0)
         self.dPsi_dr = np.zeros_like(self.r0)
@@ -125,7 +124,7 @@ class Simulation:
         self.get_force_reduced()
 
         # get full force F* -- with d_Ar/d_xi at i_xi-1
-        self.get_force_full()
+        # self.get_force_full()
 
         err_rel = 1.0
         i_conv = 0
@@ -134,41 +133,35 @@ class Simulation:
         while (err_rel>rel_err_max) and (i_conv<iter_max):
             i_conv += 1
 
-            Force_prev = self.F.copy()
-            d2r_dxi2_tmp = self.d2r_dxi2.copy()
+            d2r_dxi2_prev = self.d2r_dxi2.copy()
 
-            self.get_d2r_dxi2()
-            self.d2r_dxi2 = mixing_factor * self.d2r_dxi2 + \
-                                (1.0 - mixing_factor) * d2r_dxi2_tmp
             self.get_dAr_dxi( self.r, self.dr_dxi, self.d2r_dxi2 )
             self.get_force_full()
 
-            err_abs = np.abs(self.F-Force_prev).sum()
-            ref_intergal_prev = np.abs(Force_prev).sum()
-            ref_intergal_new = np.abs(self.F).sum()
+            self.get_d2r_dxi2()
+            self.d2r_dxi2 = mixing_factor * self.d2r_dxi2 + \
+                                (1.0 - mixing_factor) * d2r_dxi2_prev
+
+            err_abs = np.abs( self.d2r_dxi2 - d2r_dxi2_prev ).sum()
+            ref_intergal_prev = np.abs(d2r_dxi2_prev).sum()
+            ref_intergal_new = np.abs(self.d2r_dxi2).sum()
 
             if ref_intergal_prev==0.0 and ref_intergal_new==0.0:
                 err_rel = 0.0
             else:
                 err_rel = 2 * err_abs / (ref_intergal_prev + ref_intergal_new)
 
-
         if self.verbose>0 and iter_max>0 and (i_conv==iter_max):
-            print(f"max iterations is reached with error {err_rel:g}")
+            print(f"reached max PC iterations at i_xi={self.i_xi}",
+                  f"(xi={self.xi[self.i_xi]}), with an error {err_rel:g}")
 
         if self.verbose>1 and iter_max>0:
-            print(f"reached error {err_rel:g} in {i_conv} iterations")
+            print(f"reached error {err_rel:g} in {i_conv} PC iterations",
+                  f"at i_xi={self.i_xi} (xi={self.xi[self.i_xi]})")
 
-
-        # d_Ar/d_xi at i_xi-1 (had it from previous step?)
-        # self.get_dAr_dxi(self.r, self.dr_dxi, self.d2r_dxi2)
-
-        # advance r and r' at i_xi
-        # self.get_d2r_dxi2()
+        # advance r and r' at i_xi and fix axis crossing
         self.r[:] = self.r + self.dxi * self.dr_dxi
         self.dr_dxi[:] = self.dr_dxi + self.d2r_dxi2 * self.dxi
-
-        # fix axis crossing
         fix_crossing_axis_rp( self.r, self.dr_dxi )
 
         self.i_xi += 1
