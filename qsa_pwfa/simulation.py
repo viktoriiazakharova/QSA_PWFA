@@ -47,8 +47,6 @@ class Simulation:
     def allocate_data(self):
         self.r = self.r0.copy()
 
-        self.p_perp = np.zeros_like(self.r0)
-
         self.T = np.zeros_like(self.r0)
         self.v_z = np.zeros_like(self.r0)
 
@@ -70,12 +68,9 @@ class Simulation:
         for beam in self.beams:
             self.dAz_dr += beam.gaussian_integrate(r, xi_i)/ r
 
-    def get_vz(self, p_perp, Psi):
-        self.T[:] = (1. + p_perp ** 2) / (1. + Psi) ** 2
+    def get_vz(self, dr_dxi, Psi):
+        self.T[:] = (1. + (dr_dxi * (1. + Psi)) ** 2) / (1. + Psi) ** 2
         self.v_z[:] = (self.T - 1.) / (self.T + 1.)
-
-    def get_p_perp(self, dr_dxi, Psi):
-        self.p_perp[:] = dr_dxi * (1. + Psi)
 
     def get_dAz_dr(self, r, v_z):
         self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, r, self.dV, v_z)
@@ -113,8 +108,7 @@ class Simulation:
         self.get_dPsi_dr( self.r )
         self.get_dPsi_dxi(self.r, self.dr_dxi)
 
-        self.get_p_perp( self.dr_dxi, self.Psi )
-        self.get_vz( self.p_perp, self.Psi )
+        self.get_vz( self.dr_dxi, self.Psi )
 
         self.get_dAz_dr( self.r, self.v_z )
         self.add_beams_field( self.xi[self.i_xi], self.r)
