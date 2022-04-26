@@ -64,7 +64,7 @@ def get_dPsi_dr_inline(dPsi_dr_target, r_target, r_source,
 
     for ir in prange(r_target.size):
         H_r_m_rj =  fast_less(r_source, r_target[ir])
-        H_r_m_r0j = fast_less(r0_source, r_target[ir])        
+        H_r_m_r0j = fast_less(r0_source, r_target[ir])
         dPsi_dr_target[ir] += np.sum(dV_source * ( H_r_m_rj - H_r_m_r0j ) )\
                              / r_target[ir]
 
@@ -99,7 +99,7 @@ def get_dAr_dxi_inline(dAr_dxi_target, r_target, r_source, dr_dxi_source,
 
     for ir in prange(r_target.size):
         H_r_m_rj =  fast_less(r_source, r_target[ir])
-        H_rj_m_r_excl = 1 - H_r_m_rj        
+        H_rj_m_r_excl = 1 - H_r_m_rj
         r_source_inv = 1./r_source
         dAr_dxi_target[ir] = -1. / r_target[ir] * np.sum ( dV_source \
             * ( dr_dxi_source**2 * H_r_m_rj \
