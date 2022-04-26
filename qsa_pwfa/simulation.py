@@ -29,19 +29,18 @@ class Simulation:
         self.dxi = self.xi[1] - self.xi[0]
 
     def advance_xi(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05):
+
         for specie in self.species:
-
             specie.reinit()
-
             for specie_src in self.species:
                 specie.get_Psi(specie_src)
-                specie.get_dPsi_dr(specie_src)
-                specie.get_dPsi_dxi(specie_src)
 
             specie.get_vz()
 
         for specie in self.species:
             for specie_src in self.species:
+                specie.get_dPsi_dr(specie_src)
+                specie.get_dPsi_dxi(specie_src)
                 specie.get_dAz_dr(specie_src)
 
             for ext_field in self.external_fields:
@@ -58,6 +57,7 @@ class Simulation:
 
             for specie in self.species:
                 specie.d2r_dxi2_prev[:] = specie.d2r_dxi2
+                specie.dAr_dxi[:] = 0.0
 
             for specie in self.species:
                 for specie_src in self.species:
@@ -69,18 +69,17 @@ class Simulation:
                 specie.get_d2r_dxi2()
                 specie.d2r_dxi2 = mixing_factor * specie.d2r_dxi2 + \
                                   (1.0 - mixing_factor) * specie.d2r_dxi2_prev
-            err_abs = 0
-            ref_intergal_prev = 0
-            ref_intergal_new = 0
-            for specie in self.species:
-                err_abs += np.abs(specie.d2r_dxi2 - specie.d2r_dxi2_prev).sum()
-                ref_intergal_prev += np.abs(specie.d2r_dxi2_prev).sum()
-                ref_intergal_new += np.abs(specie.d2r_dxi2).sum()
 
-            if ref_intergal_prev==0.0 and ref_intergal_new==0.0:
-                err_rel = 0.0
-            else:
-                err_rel = 2 * err_abs / (ref_intergal_prev + ref_intergal_new)
+            err_rel = 0.0
+            N_species = len(self.species)
+            for specie in self.species:
+                err_abs = np.abs(specie.d2r_dxi2 - specie.d2r_dxi2_prev).sum()
+                ref_intergal_prev = np.abs(specie.d2r_dxi2_prev).sum()
+                ref_intergal_new = np.abs(specie.d2r_dxi2).sum()
+
+                if (ref_intergal_prev + ref_intergal_new != 0.):
+                    err_rel += 2 * err_abs / N_species \
+                        / (ref_intergal_prev + ref_intergal_new)
 
         if self.verbose>0 and iter_max>0 and (i_conv==iter_max):
             print(f"reached max PC iterations at i_xi={self.i_xi}",
@@ -91,7 +90,6 @@ class Simulation:
                   f"at i_xi={self.i_xi} (xi={self.xi[self.i_xi]})")
 
         for specie in self.species:
-            # advance r and r' at i_xi and fix axis crossing
             specie.dr_dxi += 0.5 * specie.d2r_dxi2 * self.dxi
             specie.r += specie.dr_dxi * self.dxi
             specie.dr_dxi += 0.5 * specie.d2r_dxi2 * self.dxi

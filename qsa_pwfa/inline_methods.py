@@ -101,7 +101,7 @@ def get_dAr_dxi_inline(dAr_dxi_target, r_target, r_source, dr_dxi_source,
         H_r_m_rj =  fast_less(r_source, r_target[ir])
         H_rj_m_r_excl = 1 - H_r_m_rj
         r_source_inv = 1./r_source
-        dAr_dxi_target[ir] = -1. / r_target[ir] * np.sum ( dV_source \
+        dAr_dxi_target[ir] += -1. / r_target[ir] * np.sum ( dV_source \
             * ( dr_dxi_source**2 * H_r_m_rj \
               + 0.5 * ( d2r_dxi2_source * r_source_inv \
                        - (dr_dxi_source * r_source_inv) ** 2 ) \
