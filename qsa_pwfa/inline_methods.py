@@ -2,6 +2,83 @@ from numba import njit, prange
 import numpy as np
 
 @njit(parallel=True)
+def get_psi_inline( Psi_target, r_target, r_source, r0_source, dV_source ):
+
+    for ir in prange(r_target.size):
+        H_r_m_rj = (r_source <= r_target[ir]).astype(np.int8)
+        H_rj_m_r_excl = 1 - H_r_m_rj
+        H_r_m_r0j = (r0_source <= r_target[ir]).astype(np.int8)
+
+        Psi_target[ir] += np.sum( dV_source * \
+            ( ( H_r_m_r0j - H_r_m_rj ) * np.log(r0_source / r_target[ir]) \
+              + H_rj_m_r_excl * np.log(r_source / r0_source) ) )
+
+    return Psi_target
+
+@njit(parallel=True)
+def get_dPsi_dr_unif_inline(dPsi_dr_target, r_target, r_source,
+                            r0_source, dV_source):
+
+    for ir in prange(r_target.size):
+        H_r_m_rj = (r_source <= r_target[ir]).astype(np.int8)
+        dPsi_dr_target[ir] += -0.5  * r_target[ir] + \
+            np.sum(dV_source * H_r_m_rj ) / r_target[ir]
+
+    return dPsi_dr_target
+
+@njit(parallel=True)
+def get_dPsi_dr_inline(dPsi_dr_target, r_target, r_source,
+                       r0_source, dV_source):
+
+    for ir in prange(r_target.size):
+        H_r_m_rj = (r_source <= r_target[ir]).astype(np.int8)
+        H_r_m_r0j = (r0_source <= r_target[ir]).astype(np.int8)
+        dPsi_dr_target[ir] += np.sum(dV_source * ( H_r_m_rj - H_r_m_r0j ) )\
+                             / r_target[ir]
+
+    return dPsi_dr_target
+
+@njit(parallel=True)
+def get_dAz_dr_inline(dAz_dr_target, r_target, r_source,
+                      v_z_source, dV_source):
+
+    for ir in prange(r_target.size):
+        H_r_m_rj = (r_source <= r_target[ir]).astype(np.int8)
+        dAz_dr_target[ir] += np.sum(dV_source * v_z_source / (1.-v_z_source) \
+                                * H_r_m_rj ) / r_target[ir]
+
+    return dAz_dr_target
+
+@njit(parallel=True)
+def get_dPsi_dxi_inline(dPsi_dxi_target, r_target, r_source,
+                        r0_source, dr_dxi_source, dV_source):
+
+    for ir in prange(r_target.size):
+        H_r_m_rj = (r_source <= r_target[ir]).astype(np.int8)
+        H_rj_m_r_excl = 1 - H_r_m_rj
+        dPsi_dxi_target[ir] += np.sum( dV_source * dr_dxi_source \
+                                      * H_rj_m_r_excl / r_source)
+
+    return dPsi_dxi_target
+
+@njit(parallel=True)
+def get_dAr_dxi_inline(dAr_dxi_target, r_target, r_source, dr_dxi_source,
+                       d2r_dxi2_source, dV_source):
+
+    for ir in prange(r_target.size):
+        H_r_m_rj = (r_source <= r_target[ir]).astype(np.int8)
+        H_rj_m_r_excl = 1 - H_r_m_rj
+        r_source_inv = 1./r_source
+        dAr_dxi_target[ir] = -1. / r_target[ir] * np.sum ( dV_source \
+            * ( dr_dxi_source**2 * H_r_m_rj \
+              + 0.5 * ( d2r_dxi2_source * r_source_inv \
+                       - (dr_dxi_source * r_source_inv) ** 2 ) \
+              * (r_target[ir]**2 * H_rj_m_r_excl  + r_source**2 * H_r_m_rj)
+            ) )
+
+    return dAr_dxi_target
+
+@njit(parallel=True)
 def fix_crossing_axis_rp(r, p):
     Nr = r.size
     for j in prange(Nr):
@@ -9,66 +86,3 @@ def fix_crossing_axis_rp(r, p):
             r[j] = np.abs(r[j])
             p[j] = np.abs(p[j])
     return r, p
-
-@njit(parallel=True)
-def get_dPsi_dr_unif_inline(dPsi_dr, r, r0, dV):
-    Nr = r.size
-    for ir in prange(Nr):
-        dPsi_dr[ir] = -0.5  * r[ir] + \
-            np.sum(dV * (r <= r[ir]) ) / r[ir]
-
-    return dPsi_dr
-
-@njit(parallel=True)
-def get_dPsi_dr_inline(dPsi_dr, r, r0, dV):
-    Nr = r.size
-    for ir in prange(Nr):
-        dPsi_dr[ir] = np.sum(dV * ( (r <= r[ir]).astype(np.int8) \
-            - (r0 <= r[ir]).astype(np.int8) ) ) / r[ir]
-
-    return dPsi_dr
-
-@njit(parallel=True)
-def get_dAz_dr_inline(dAz_dr, r, dV, v_z):
-    Nr = r.size
-    for ir in prange(Nr):
-        dAz_dr[ir] = np.sum(dV * v_z / (1.-v_z) * (r <= r[ir]) ) / r[ir]
-
-    return dAz_dr
-
-@njit(parallel=True)
-def get_psi_inline( Psi, r, r0, dV):
-    N_r = int(r.size)
-
-    for j in prange(N_r):
-        Psi[j] = np.sum( dV * \
-            ( ( (r0 <= r[j]).astype(np.int8) - (r <= r[j]).astype(np.int8) ) * \
-              np.log(r0 / r[j]) +  \
-            (r > r[j]).astype(np.int8) * np.log(r / r0)  ))
-
-    return Psi
-
-
-@njit(parallel=True)
-def get_dpsi_dxi_inline( dpsi_dxi, r, r0, dr_dxi, dV):
-    N_r = int(r.size)
-
-    for j in prange(N_r):
-        dpsi_dxi[j] = np.sum( dV * dr_dxi * (r > r[j]) / r)
-
-    return dpsi_dxi
-
-
-@njit(parallel=True)
-def get_dAr_dxi_inline(dAr_dxi, r, dr_dxi, d2r_dxi2, dV):
-    Nr = r.size
-    for ir in prange(Nr):
-        dAr_dxi[ir] = 1/r[ir] * np.sum ( dV * \
-            ( dr_dxi**2 * (r <= r[ir]) \
-              + 0.5 * (d2r_dxi2 / r - (dr_dxi / r) ** 2) \
-                * ( r[ir]**2 * (r >= r[ir]) + r**2 * (r <= r[ir]) )
-            ) )
-        dAr_dxi[ir] = - dAr_dxi[ir]
-        
-
-    return dAr_dxi

@@ -1,0 +1,124 @@
+import numpy as np
+from .inline_methods import *
+
+
+class NeutralPlasma:
+
+    def __init__(self, L_r=None, N_r=None, r_grid_user=None,
+                 dens_func=None, particle_boundary=1):
+
+        self.particle_boundary = particle_boundary
+        self.init_r_grid(L_r, N_r, r_grid_user, dens_func)
+        self.allocate_data()
+
+    def init_r_grid(self, L_r, N_r, r_grid_user, dens_func):
+
+        if (L_r is not None) and (N_r is not None):
+            self.L_r = L_r
+            self.N_r = N_r
+            self.dr0 = L_r/N_r
+            self.r0 = self.dr0 * np.arange(1, N_r+1)
+            self.rmax = self.r0.max()
+
+            self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
+            self.dV[0] = 0.5 * self.dr0**2
+
+        elif r_grid_user is not None:
+            self.r0 = r_grid_user.copy()
+            self.rmax = self.r0.max()
+            self.L_r = self.r0.max()
+            self.N_r = self.r0.size
+            self.dr0 = np.r_[self.r0[0], self.r0[1:] - self.r0[:-1]]
+            self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
+            self.dV[0] = 0.5 * self.dr0[0]**2
+        else:
+            print('need to define the grid')
+
+        # handle the non-uniform density
+        if dens_func is not None:
+            self.get_dPsi_dr_inline = get_dPsi_dr_inline
+            self.dV *= dens_func(self.r0 - 0.5*self.dr0)
+        else:
+            self.get_dPsi_dr_inline = get_dPsi_dr_unif_inline
+
+    def allocate_data(self):
+        self.r = self.r0.copy()
+        self.dr_dxi = np.zeros_like(self.r0)
+        self.d2r_dxi2 = np.zeros_like(self.r0)
+        self.d2r_dxi2_prev = np.zeros_like(self.r0)
+
+        self.T = np.zeros_like(self.r0)
+        self.v_z = np.zeros_like(self.r0)
+
+        self.dAr_dxi = np.zeros_like(self.r0)
+        self.dAz_dr = np.zeros_like(self.r0)
+
+        self.Psi = np.zeros_like(self.r0)
+        self.dPsi_dr = np.zeros_like(self.r0)
+        self.dPsi_dxi = np.zeros_like(self.r0)
+
+        self.F = np.zeros_like(self.r0)
+        self.F_part = np.zeros_like(self.r0)
+
+    def reinit(self):
+        self.T[:] = 0.0
+        self.v_z[:] = 0.0
+
+        self.dAr_dxi[:] = 0.0
+        self.dAz_dr[:] = 0.0
+
+        self.Psi[:] = 0.0
+        self.dPsi_dr[:] = 0.0
+        self.dPsi_dxi[:] = 0.0
+
+        self.F[:] = 0.0
+        self.F_part[:] = 0.0
+
+    def get_Psi(self, source_specie):
+        self.Psi = get_psi_inline(self.Psi, self.r,
+                                  source_specie.r,
+                                  source_specie.r0,
+                                  source_specie.dV)
+
+    def get_dPsi_dr(self, source_specie):
+        self.dPsi_dr = self.get_dPsi_dr_inline(self.dPsi_dr, self.r,
+                                               source_specie.r,
+                                               source_specie.r0,
+                                               source_specie.dV)
+
+    def get_dAz_dr(self, source_specie):
+        self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r,
+                                        source_specie.r,
+                                        source_specie.v_z,
+                                        source_specie.dV)
+
+    def get_dPsi_dxi(self, source_specie):
+        self.dPsi_dxi = get_dPsi_dxi_inline(self.dPsi_dxi, self.r,
+                                            source_specie.r,
+                                            source_specie.r0,
+                                            source_specie.dr_dxi,
+                                            source_specie.dV)
+
+    def get_vz(self):
+        self.T[:] = (1. + (self.dr_dxi * (1. + self.Psi)) ** 2) / \
+                    (1. + self.Psi) ** 2
+        self.v_z[:] = (self.T - 1.) / (self.T + 1.)
+
+    def get_dAr_dxi(self, source_specie):
+        self.dAr_dxi = get_dAr_dxi_inline(self.dAr_dxi, self.r,
+                                          source_specie.r,
+                                          source_specie.dr_dxi,
+                                          source_specie.d2r_dxi2,
+                                          source_specie.dV)
+
+    def get_force_reduced(self):
+        self.F_part[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
+
+    def get_force_full(self):
+        self.F[:] = self.F_part + (1. - self.v_z) * self.dAr_dxi
+        if self.particle_boundary == 1:
+            self.F *= ( self.r<=self.rmax )
+
+    def get_d2r_dxi2(self):
+        self.d2r_dxi2[:] = ( self.F / (1. - self.v_z) \
+            - self.dPsi_dxi * self.dr_dxi ) / (1 + self.Psi)
