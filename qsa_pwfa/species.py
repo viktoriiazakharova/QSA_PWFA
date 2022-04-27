@@ -59,6 +59,7 @@ class BaseSpecie:
         self.F[:] = 0.0
         self.F_part[:] = 0.0
 
+
 class PlasmaMethods:
 
     def get_dAz_dr(self, source_specie):
@@ -117,6 +118,11 @@ class PlasmaMethods:
         self.d2r_dxi2[:] = ( self.F / (1. - self.v_z) \
             - self.dPsi_dxi * self.dr_dxi ) / (1 + self.Psi)
 
+    def advance_motion(self, dxi):
+            self.dr_dxi += 0.5 * self.d2r_dxi2 * dxi
+            self.r += self.dr_dxi * dxi
+            self.dr_dxi += 0.5 * self.d2r_dxi2 * dxi
+            fix_crossing_axis_rp(self.r, self.dr_dxi)
 
 class NeutralUniformPlasma(BaseSpecie, PlasmaMethods):
 

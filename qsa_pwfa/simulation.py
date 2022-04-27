@@ -1,15 +1,13 @@
 import numpy as np
-from .inline_methods import fix_crossing_axis_rp
 
 class Simulation:
 
-    def __init__(self, L_xi, N_xi,
-                 verbose=1):
+    def __init__(self, L_xi, N_xi, verbose=1):
 
         self.verbose = verbose
+        self.init_xi_grid(L_xi, N_xi)
         self.external_fields = []
         self.species = []
-        self.init_xi_grid(L_xi, N_xi)
 
     def add_external_field(self, external_field):
         self.external_fields.append(external_field)
@@ -90,9 +88,6 @@ class Simulation:
                   f"at i_xi={self.i_xi} (xi={self.xi[self.i_xi]})")
 
         for specie in self.species:
-            specie.dr_dxi += 0.5 * specie.d2r_dxi2 * self.dxi
-            specie.r += specie.dr_dxi * self.dxi
-            specie.dr_dxi += 0.5 * specie.d2r_dxi2 * self.dxi
-            fix_crossing_axis_rp(specie.r, specie.dr_dxi)
+            specie.advance_motion(self.dxi)
 
         self.i_xi += 1
