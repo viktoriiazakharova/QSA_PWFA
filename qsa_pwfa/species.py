@@ -1,17 +1,9 @@
 import numpy as np
 from .inline_methods import *
 
+class BaseSpecie:
 
-class NeutralPlasma:
-
-    def __init__(self, L_r=None, N_r=None, r_grid_user=None,
-                 dens_func=None, particle_boundary=1):
-
-        self.particle_boundary = particle_boundary
-        self.init_r_grid(L_r, N_r, r_grid_user, dens_func)
-        self.allocate_data()
-
-    def init_r_grid(self, L_r, N_r, r_grid_user, dens_func):
+    def init_r_grid(self, L_r, N_r, r_grid_user):
 
         if (L_r is not None) and (N_r is not None):
             self.L_r = L_r
@@ -20,8 +12,8 @@ class NeutralPlasma:
             self.r0 = self.dr0 * np.arange(1, N_r+1)
             self.rmax = self.r0.max()
 
-            self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
-            self.dV[0] = 0.5 * self.dr0**2
+            self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
+            self.dQ[0] = 0.5 * self.dr0**2
 
         elif r_grid_user is not None:
             self.r0 = r_grid_user.copy()
@@ -29,17 +21,10 @@ class NeutralPlasma:
             self.L_r = self.r0.max()
             self.N_r = self.r0.size
             self.dr0 = np.r_[self.r0[0], self.r0[1:] - self.r0[:-1]]
-            self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
-            self.dV[0] = 0.5 * self.dr0[0]**2
+            self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
+            self.dQ[0] = 0.5 * self.dr0[0]**2
         else:
             print('need to define the grid')
-
-        # handle the non-uniform density
-        if dens_func is not None:
-            self.get_dPsi_dr_inline = get_dPsi_dr_inline
-            self.dV *= dens_func(self.r0 - 0.5*self.dr0)
-        else:
-            self.get_dPsi_dr_inline = get_dPsi_dr_unif_inline
 
     def allocate_data(self):
         self.r = self.r0.copy()
@@ -74,30 +59,39 @@ class NeutralPlasma:
         self.F[:] = 0.0
         self.F_part[:] = 0.0
 
-    def get_Psi(self, source_specie):
-        self.Psi = get_psi_inline(self.Psi, self.r,
-                                  source_specie.r,
-                                  source_specie.r0,
-                                  source_specie.dV)
-
-    def get_dPsi_dr(self, source_specie):
-        self.dPsi_dr = self.get_dPsi_dr_inline(self.dPsi_dr, self.r,
-                                               source_specie.r,
-                                               source_specie.r0,
-                                               source_specie.dV)
+class PlasmaMethods:
 
     def get_dAz_dr(self, source_specie):
         self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r,
                                         source_specie.r,
                                         source_specie.v_z,
-                                        source_specie.dV)
+                                        source_specie.dQ)
+
+    def get_Psi(self, source_specie):
+        self.Psi = get_psi_inline(self.Psi, self.r,
+                                  source_specie.r,
+                                  source_specie.r0,
+                                  source_specie.dQ)
+
+    def get_dPsi_dr(self, source_specie):
+        if source_specie.type == "NeutralUniformPlasma":
+            self.dPsi_dr = get_dPsi_dr_unif_inline(self.dPsi_dr, self.r,
+                                                   source_specie.n_p,
+                                                   source_specie.r,
+                                                   source_specie.r0,
+                                                   source_specie.dQ)
+        elif source_specie.type == "NeutralNoneUniformPlasma":
+            self.dPsi_dr = get_dPsi_dr_inline(self.dPsi_dr, self.r,
+                                              source_specie.r,
+                                              source_specie.r0,
+                                              source_specie.dQ)
 
     def get_dPsi_dxi(self, source_specie):
         self.dPsi_dxi = get_dPsi_dxi_inline(self.dPsi_dxi, self.r,
                                             source_specie.r,
                                             source_specie.r0,
                                             source_specie.dr_dxi,
-                                            source_specie.dV)
+                                            source_specie.dQ)
 
     def get_vz(self):
         self.T[:] = (1. + (self.dr_dxi * (1. + self.Psi)) ** 2) / \
@@ -109,7 +103,7 @@ class NeutralPlasma:
                                           source_specie.r,
                                           source_specie.dr_dxi,
                                           source_specie.d2r_dxi2,
-                                          source_specie.dV)
+                                          source_specie.dQ)
 
     def get_force_reduced(self):
         self.F_part[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
@@ -122,3 +116,34 @@ class NeutralPlasma:
     def get_d2r_dxi2(self):
         self.d2r_dxi2[:] = ( self.F / (1. - self.v_z) \
             - self.dPsi_dxi * self.dr_dxi ) / (1 + self.Psi)
+
+
+class NeutralUniformPlasma(BaseSpecie, PlasmaMethods):
+
+    def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1,
+                 particle_boundary=1):
+
+        self.type = "NeutralUniformPlasma"
+
+        self.particle_boundary = particle_boundary
+        self.n_p = n_p
+
+        self.init_r_grid(L_r, N_r, r_grid_user)
+        self.dQ *= n_p
+
+        self.allocate_data()
+
+class NeutralNoneUniformPlasma(BaseSpecie, PlasmaMethods):
+
+    def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
+                 particle_boundary=0):
+
+        self.type = "NeutralNoneUniformPlasma"
+
+        self.particle_boundary = particle_boundary
+        self.dens_func = dens_func
+
+        self.init_r_grid(L_r, N_r, r_grid_user)
+        self.dQ *= dens_func(self.r0 - 0.5*self.dr0)
+
+        self.allocate_data()
