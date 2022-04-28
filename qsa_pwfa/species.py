@@ -153,3 +153,12 @@ class NeutralNoneUniformPlasma(BaseSpecie, PlasmaMethods):
         self.dQ *= dens_func(self.r0 - 0.5*self.dr0)
 
         self.allocate_data()
+
+class Grid(BaseSpecie, PlasmaMethods):
+
+    def __init__(self, L_r=None, N_r=None, r_grid_user=None):
+
+        self.particle_boundary = 0
+        self.type = "NoSource"
+        self.init_r_grid(L_r, N_r, r_grid_user)
+        self.allocate_data()
