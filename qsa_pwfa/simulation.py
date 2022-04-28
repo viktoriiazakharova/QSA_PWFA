@@ -8,15 +8,13 @@ class Simulation:
         self.init_xi_grid(L_xi, N_xi)
         self.external_fields = []
         self.species = []
-        self.species_src = []
+        self.diagnostics = []
 
     def add_external_field(self, external_field):
         self.external_fields.append(external_field)
 
     def add_specie(self, specie):
         self.species.append(specie)
-        if specie.type != "NoSource":
-            self.species_src.append(specie)
 
     def init_xi_grid(self, L_xi, N_xi):
         # iteration counter
@@ -33,13 +31,13 @@ class Simulation:
 
         for specie in self.species:
             specie.reinit()
-            for specie_src in self.species_src:
+            for specie_src in self.species:
                 specie.get_Psi(specie_src)
 
             specie.get_vz()
 
         for specie in self.species:
-            for specie_src in self.species_src:
+            for specie_src in self.species:
                 specie.get_dPsi_dr(specie_src)
                 specie.get_dPsi_dxi(specie_src)
                 specie.get_dAz_dr(specie_src)
@@ -56,15 +54,15 @@ class Simulation:
         while (err_rel>rel_err_max) and (i_conv<iter_max):
             i_conv += 1
 
-            for specie in self.species_src:
+            for specie in self.species:
                 specie.d2r_dxi2_prev[:] = specie.d2r_dxi2
                 specie.dAr_dxi[:] = 0.0
 
-            for specie in self.species_src:
-                for specie_src in self.species_src:
+            for specie in self.species:
+                for specie_src in self.species:
                     specie.get_dAr_dxi(specie_src)
 
-            for specie in self.species_src:
+            for specie in self.species:
                 specie.get_force_full()
 
                 specie.get_d2r_dxi2()
@@ -72,8 +70,8 @@ class Simulation:
                                   (1.0 - mixing_factor) * specie.d2r_dxi2_prev
 
             err_rel = 0.0
-            N_species = len(self.species_src)
-            for specie in self.species_src:
+            N_species = len(self.species)
+            for specie in self.species:
                 err_abs = np.abs(specie.d2r_dxi2 - specie.d2r_dxi2_prev).sum()
                 ref_intergal_prev = np.abs(specie.d2r_dxi2_prev).sum()
                 ref_intergal_new = np.abs(specie.d2r_dxi2).sum()
@@ -91,13 +89,9 @@ class Simulation:
                   f"at i_xi={self.i_xi} (xi={self.xi[self.i_xi]})")
 
         for specie in self.species:
-            if specie.type == "NoSource":
-                for specie_src in self.species_src:
-                    specie.get_dAr_dxi(specie_src)
-                specie.get_force_full()
-                specie.get_d2r_dxi2()
-
-        for specie in self.species_src:
             specie.advance_motion(self.dxi)
+
+        for diag in self.diagnostics:
+            diag.make_record(self.i_xi)
 
         self.i_xi += 1
