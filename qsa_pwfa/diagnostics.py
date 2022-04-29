@@ -3,10 +3,30 @@ import numpy as np
 class FieldDiagnostics:
 
     def __init__(self, simulation, grid, fields=['Psi', ],
-                 xi_step=1, xi_range=None ):
+                 xi_step=1, xi_range=None, species_src=None ):
+        """
+        Available fields are:
+          'Density'
+          'J_z'
+          'v_z'
+          'Psi'
+          'dPsi_dxi'
+          'dPsi_dr'
+          'dAr_xi'
+          'dAz_dr'
+
+        NB: 'v_z' works only with a single specie, so it has
+        to be defined in a `species_src` list.
+        """
+
         self.grid = grid
         self.simulation = simulation
         self.fields = fields.copy()
+
+        if species_src is not None:
+            self.species_src = species_src
+        else:
+            self.species_src = simulation.species
 
         if xi_range is not None:
             xi_select = (simulation.xi>=xi_range[0]) \
@@ -29,7 +49,7 @@ class FieldDiagnostics:
 
             self.grid.init_data(self.fields)
             for fld in self.fields:
-                for specie_src in self.simulation.species:
+                for specie_src in self.species_src:
                     getattr(self.grid, 'get_'+fld)(specie_src)
 
                 self.Data[fld][i_xi_loc] = getattr(self.grid, fld)

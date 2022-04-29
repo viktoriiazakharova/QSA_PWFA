@@ -72,6 +72,22 @@ class PlasmaMethods:
                                           source_specie.r, weights)
         self.Density /= self.dQ
 
+    def get_J_z(self, source_specie):
+        weights = source_specie.dQ * source_specie.v_z/ (1 - source_specie.v_z)
+        self.J_z = get_Density_inline(self.J_z, self.r0, self.dr0,
+                                      source_specie.r, weights)
+        self.J_z /= self.dQ
+
+    def get_v_z(self, source_specie):
+        weights = source_specie.dQ / (1 - source_specie.v_z)
+        weights_vz = weights * source_specie.v_z
+        dens_temp = np.zeros_like(self.r0)
+        dens_temp = get_Density_inline(dens_temp, self.r0, self.dr0,
+                                      source_specie.r, weights)
+        self.v_z = get_Density_inline(self.v_z, self.r0, self.dr0,
+                                      source_specie.r, weights_vz)
+        self.v_z /= dens_temp
+
     def get_dAz_dr(self, source_specie):
         self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r,
                                         source_specie.r,
