@@ -49,8 +49,6 @@ class BaseSpecie:
         self.F = np.zeros_like(self.r0)
         self.F_part = np.zeros_like(self.r0)
 
-        self.Density = np.zeros_like(self.r0)
-
     def reinit(self):
         self.T[:] = 0.0
         self.v_z[:] = 0.0
@@ -65,7 +63,6 @@ class BaseSpecie:
         self.F[:] = 0.0
         self.F_part[:] = 0.0
 
-        self.Density[:] = 0.0
 
 class PlasmaMethods:
 
@@ -174,4 +171,9 @@ class Grid(BaseSpecie, PlasmaMethods):
         self.particle_boundary = 0
         self.type = "Grid"
         self.init_r_grid(L_r, N_r, r_grid_user)
-        self.allocate_data()
+
+    def init_data(self, fields):
+        self.r = self.r0.copy()
+
+        for fld in fields:
+            setattr(self, fld, np.zeros_like(self.r))
