@@ -33,11 +33,11 @@ def fix_crossing_axis_rp(r, p):
     return r, p
 
 
-@njit(parallel=True)
+@njit
 def get_Density_inline(Density_target, r_target, dr_target,
                        r_source, dW_source):
 
-    for ir in prange(r_source.size):
+    for ir in range(r_source.size):
         r = r_source[ir]
         ir_cell = (r_target<=r).sum() - 1
 
