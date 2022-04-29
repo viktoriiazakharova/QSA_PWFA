@@ -8,6 +8,7 @@ class Simulation:
         self.init_xi_grid(L_xi, N_xi)
         self.external_fields = []
         self.species = []
+        self.diagnostics = []
 
     def add_external_field(self, external_field):
         self.external_fields.append(external_field)
@@ -89,5 +90,8 @@ class Simulation:
 
         for specie in self.species:
             specie.advance_motion(self.dxi)
+
+        for diag in self.diagnostics:
+            diag.make_record(self.i_xi)
 
         self.i_xi += 1

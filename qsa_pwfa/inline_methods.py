@@ -32,8 +32,33 @@ def fix_crossing_axis_rp(r, p):
             p[j] = np.abs(p[j])
     return r, p
 
+
 @njit(parallel=True)
-def get_psi_inline( Psi_target, r_target, r_source, r0_source, dQ_source ):
+def get_Density_inline(Density_target, r_target, dr_target,
+                       r_source, dW_source):
+
+    for ir in prange(r_source.size):
+        r = r_source[ir]
+        ir_cell = (r_target<=r).sum() - 1
+
+        if ir_cell == -1:
+            Density_target[0] += dW_source[ir]
+        elif ir_cell == r_target.size-1:
+            Density_target[ir_cell] += dW_source[ir]
+        elif ir_cell>r_target.size-1:
+            continue
+        else:
+            dr = dr_target[ir_cell]
+            s1 = (r - r_target[ir_cell]) / dr
+            s0 = 1. - s1
+            Density_target[ir_cell] += dW_source[ir] * s0
+            Density_target[ir_cell+1] += dW_source[ir] * s1
+
+    return Density_target
+
+
+@njit(parallel=True)
+def get_Psi_inline( Psi_target, r_target, r_source, r0_source, dQ_source ):
 
     for ir in prange(r_target.size):
         H_r_m_rj =  fast_less(r_source, r_target[ir])

@@ -1,6 +1,7 @@
 import numpy as np
 from .inline_methods import *
 
+
 class BaseSpecie:
 
     def init_r_grid(self, L_r, N_r, r_grid_user):
@@ -8,19 +9,22 @@ class BaseSpecie:
         if (L_r is not None) and (N_r is not None):
             self.L_r = L_r
             self.N_r = N_r
-            self.dr0 = L_r/N_r
-            self.r0 = self.dr0 * np.arange(1, N_r+1)
-            self.rmax = self.r0.max()
+            self.r0 = L_r / N_r * np.arange(1, N_r+1)
+            self.dr0 = np.gradient(self.r0)
 
+            self.r0 -= 0.5*self.dr0
             self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
-            self.dQ[0] = 0.5 * self.dr0**2
+            self.dQ[0] = 0.125 * self.dr0[0]**2
+
+            self.rmax = self.r0.max()
 
         elif r_grid_user is not None:
             self.r0 = r_grid_user.copy()
             self.rmax = self.r0.max()
-            self.L_r = self.r0.max()
+            self.L_r = self.rmax
             self.N_r = self.r0.size
-            self.dr0 = np.r_[self.r0[0], self.r0[1:] - self.r0[:-1]]
+            self.dr0 = np.gradient(self.r0)
+            #np.r_[self.r0[0], self.r0[1:] - self.r0[:-1]]
             self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
             self.dQ[0] = 0.5 * self.dr0[0]**2
         else:
@@ -45,6 +49,8 @@ class BaseSpecie:
         self.F = np.zeros_like(self.r0)
         self.F_part = np.zeros_like(self.r0)
 
+        self.Density = np.zeros_like(self.r0)
+
     def reinit(self):
         self.T[:] = 0.0
         self.v_z[:] = 0.0
@@ -59,8 +65,15 @@ class BaseSpecie:
         self.F[:] = 0.0
         self.F_part[:] = 0.0
 
+        self.Density[:] = 0.0
 
 class PlasmaMethods:
+
+    def get_Density(self, source_specie):
+        weights = source_specie.dQ / (1 - source_specie.v_z)
+        self.Density = get_Density_inline(self.Density, self.r0, self.dr0,
+                                          source_specie.r, weights)
+        self.Density /= self.dQ
 
     def get_dAz_dr(self, source_specie):
         self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r,
@@ -69,7 +82,7 @@ class PlasmaMethods:
                                         source_specie.dQ)
 
     def get_Psi(self, source_specie):
-        self.Psi = get_psi_inline(self.Psi, self.r,
+        self.Psi = get_Psi_inline(self.Psi, self.r,
                                   source_specie.r,
                                   source_specie.r0,
                                   source_specie.dQ)
@@ -150,6 +163,15 @@ class NeutralNoneUniformPlasma(BaseSpecie, PlasmaMethods):
         self.dens_func = dens_func
 
         self.init_r_grid(L_r, N_r, r_grid_user)
-        self.dQ *= dens_func(self.r0 - 0.5*self.dr0)
+        self.dQ *= dens_func(self.r0)  #- 0.5*self.dr0)
 
+        self.allocate_data()
+
+class Grid(BaseSpecie, PlasmaMethods):
+
+    def __init__(self, L_r=None, N_r=None, r_grid_user=None):
+
+        self.particle_boundary = 0
+        self.type = "Grid"
+        self.init_r_grid(L_r, N_r, r_grid_user)
         self.allocate_data()
