@@ -34,7 +34,7 @@ class Simulation:
             for specie_src in self.species:
                 specie.get_Psi(specie_src)
 
-            specie.get_vz()
+            specie.get_v_z_plasma()
 
         for specie in self.species:
             for specie_src in self.species:
@@ -73,12 +73,11 @@ class Simulation:
             N_species = len(self.species)
             for specie in self.species:
                 err_abs = np.abs(specie.d2r_dxi2 - specie.d2r_dxi2_prev).sum()
-                ref_intergal_prev = np.abs(specie.d2r_dxi2_prev).sum()
-                ref_intergal_new = np.abs(specie.d2r_dxi2).sum()
+                ref_intergal = 0.5 * (np.abs(specie.d2r_dxi2_prev).sum() \
+                                    + np.abs(specie.d2r_dxi2).sum() )
 
-                if (ref_intergal_prev + ref_intergal_new != 0.):
-                    err_rel += 2 * err_abs / N_species \
-                        / (ref_intergal_prev + ref_intergal_new)
+                if ref_intergal != 0:
+                    err_rel +=  err_abs / ref_intergal / N_species
 
         if self.verbose>0 and iter_max>0 and (i_conv==iter_max):
             print(f"reached max PC iterations at i_xi={self.i_xi}",

@@ -1,9 +1,11 @@
 import numpy as np
+from .species import Grid
 
 class FieldDiagnostics:
 
-    def __init__(self, simulation, grid, fields=['Psi', ],
-                 xi_step=1, xi_range=None, species_src=None ):
+    def __init__( self, simulation, fields=['Psi', ],
+                  L_r=None, N_r=None, r_grid_user=None, 
+                  xi_step=1, xi_range=None, species_src=None ):
         """
         Available fields are:
           'Density'
@@ -19,7 +21,7 @@ class FieldDiagnostics:
         to be defined in a `species_src` list.
         """
 
-        self.grid = grid
+        self.grid = Grid(L_r, N_r, r_grid_user)
         self.simulation = simulation
         self.fields = fields.copy()
 
@@ -40,7 +42,7 @@ class FieldDiagnostics:
 
         self.Data = {}
         for fld in self.fields:
-            self.Data[fld] = np.zeros((self.i_xi.size, grid.N_r))
+            self.Data[fld] = np.zeros((self.i_xi.size, self.grid.N_r))
 
     def make_record(self, i_xi):
 

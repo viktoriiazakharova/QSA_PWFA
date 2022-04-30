@@ -1,6 +1,23 @@
 import numpy as np
 from .inline_methods import *
 
+plasma_motion_fields = [
+            'dr_dxi',
+            'd2r_dxi2',
+            'd2r_dxi2_prev',
+            'F_part',
+            'F',
+            'T',
+            ]
+
+base_fields = [
+            'v_z',
+            'dAr_dxi',
+            'dAz_dr',
+            'Psi',
+            'dPsi_dr',
+            'dPsi_dxi',
+            ]
 
 class BaseSpecie:
 
@@ -13,6 +30,7 @@ class BaseSpecie:
             self.dr0 = np.gradient(self.r0)
 
             self.r0 -= 0.5*self.dr0
+            self.r = self.r0.copy()
             self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
             self.dQ[0] = 0.125 * self.dr0[0]**2
 
@@ -20,51 +38,19 @@ class BaseSpecie:
 
         elif r_grid_user is not None:
             self.r0 = r_grid_user.copy()
+            self.r = self.r0.copy()
             self.rmax = self.r0.max()
             self.L_r = self.rmax
             self.N_r = self.r0.size
             self.dr0 = np.gradient(self.r0)
-            #np.r_[self.r0[0], self.r0[1:] - self.r0[:-1]]
             self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
             self.dQ[0] = 0.5 * self.dr0[0]**2
         else:
             print('need to define the grid')
 
-    def allocate_data(self):
-        self.r = self.r0.copy()
-        self.dr_dxi = np.zeros_like(self.r0)
-        self.d2r_dxi2 = np.zeros_like(self.r0)
-        self.d2r_dxi2_prev = np.zeros_like(self.r0)
-
-        self.T = np.zeros_like(self.r0)
-        self.v_z = np.zeros_like(self.r0)
-
-        self.dAr_dxi = np.zeros_like(self.r0)
-        self.dAz_dr = np.zeros_like(self.r0)
-
-        self.Psi = np.zeros_like(self.r0)
-        self.dPsi_dr = np.zeros_like(self.r0)
-        self.dPsi_dxi = np.zeros_like(self.r0)
-
-        self.F = np.zeros_like(self.r0)
-        self.F_part = np.zeros_like(self.r0)
-
-    def reinit(self):
-        self.T[:] = 0.0
-        self.v_z[:] = 0.0
-
-        self.dAr_dxi[:] = 0.0
-        self.dAz_dr[:] = 0.0
-
-        self.Psi[:] = 0.0
-        self.dPsi_dr[:] = 0.0
-        self.dPsi_dxi[:] = 0.0
-
-        self.F[:] = 0.0
-        self.F_part[:] = 0.0
-
-
-class PlasmaMethods:
+    def init_data(self, fields):
+        for fld in fields:
+            setattr(self, fld, np.zeros_like(self.r))
 
     def get_Density(self, source_specie):
         weights = source_specie.dQ / (1 - source_specie.v_z)
@@ -120,7 +106,7 @@ class PlasmaMethods:
                                             source_specie.dr_dxi,
                                             source_specie.dQ)
 
-    def get_vz(self):
+    def get_v_z_plasma(self):
         self.T[:] = (1. + (self.dr_dxi * (1. + self.Psi)) ** 2) / \
                     (1. + self.Psi) ** 2
         self.v_z[:] = (self.T - 1.) / (self.T + 1.)
@@ -150,7 +136,7 @@ class PlasmaMethods:
             self.dr_dxi += 0.5 * self.d2r_dxi2 * dxi
             fix_crossing_axis_rp(self.r, self.dr_dxi)
 
-class NeutralUniformPlasma(BaseSpecie, PlasmaMethods):
+class NeutralUniformPlasma(BaseSpecie):
 
     def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1,
                  particle_boundary=1):
@@ -163,9 +149,13 @@ class NeutralUniformPlasma(BaseSpecie, PlasmaMethods):
         self.init_r_grid(L_r, N_r, r_grid_user)
         self.dQ *= n_p
 
-        self.allocate_data()
+        self.fields = plasma_motion_fields + base_fields
+        self.init_data(self.fields)
 
-class NeutralNoneUniformPlasma(BaseSpecie, PlasmaMethods):
+    def reinit(self):
+        self.init_data(base_fields)
+
+class NeutralNoneUniformPlasma(BaseSpecie):
 
     def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
                  particle_boundary=0):
@@ -176,20 +166,18 @@ class NeutralNoneUniformPlasma(BaseSpecie, PlasmaMethods):
         self.dens_func = dens_func
 
         self.init_r_grid(L_r, N_r, r_grid_user)
-        self.dQ *= dens_func(self.r0)  #- 0.5*self.dr0)
+        self.dQ *= dens_func(self.r0)
 
-        self.allocate_data()
+        self.fields = plasma_motion_fields + base_fields
+        self.init_data(self.fields)
 
-class Grid(BaseSpecie, PlasmaMethods):
+    def reinit(self):
+        self.init_data(base_fields)
+        
+class Grid(BaseSpecie):
 
     def __init__(self, L_r=None, N_r=None, r_grid_user=None):
 
         self.particle_boundary = 0
         self.type = "Grid"
         self.init_r_grid(L_r, N_r, r_grid_user)
-
-    def init_data(self, fields):
-        self.r = self.r0.copy()
-
-        for fld in fields:
-            setattr(self, fld, np.zeros_like(self.r))
