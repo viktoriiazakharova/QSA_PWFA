@@ -17,12 +17,6 @@ class Simulation:
     def add_specie(self, specie):
         self.species.append(specie)
 
-    def run(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05):
-        for i_xi in tqdm(range(self.N_xi-1)):
-            self._advance_xi(iter_max=iter_max, 
-                            rel_err_max=rel_err_max,
-                            mixing_factor=mixing_factor)
-
     def _init_xi_grid(self, L_xi, N_xi):
         # iteration counter
         self.i_xi = 0
@@ -33,6 +27,20 @@ class Simulation:
 
         self.xi = L_xi / N_xi * np.arange(N_xi)
         self.dxi = self.xi[1] - self.xi[0]
+
+    def run(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05, 
+            track_convergence=False):
+
+        self.track_convergence = track_convergence
+        if self.track_convergence:
+            self.err_abs_list = []
+            self.err_rel_list = []
+            self.i_conv_list = []
+
+        for i_xi in tqdm(range(self.N_xi-1)):
+            self._advance_xi(iter_max=iter_max, 
+                            rel_err_max=rel_err_max,
+                            mixing_factor=mixing_factor)
 
     def _advance_xi(self, iter_max, rel_err_max, mixing_factor):
 
@@ -57,10 +65,12 @@ class Simulation:
 
         err_rel = 1.0
         i_conv = 0
+        if self.track_convergence:
+            err_abs_list_loc = []
+            err_rel_list_loc = []
+            i_conv_list_loc = []
 
         while (err_rel>rel_err_max) and (i_conv<iter_max):
-            i_conv += 1
-
             for specie in self.species:
                 specie.d2r_dxi2_prev[:] = specie.d2r_dxi2
                 specie.dAr_dxi[:] = 0.0
@@ -85,6 +95,18 @@ class Simulation:
 
                 if ref_intergal != 0:
                     err_rel +=  err_abs / ref_intergal / N_species
+
+            if self.track_convergence:
+                err_abs_list_loc.append(err_abs)
+                err_rel_list_loc.append(err_rel)
+                i_conv_list_loc.append(i_conv)
+
+            i_conv += 1
+            
+        if self.track_convergence:
+            self.err_abs_list.append(err_abs_list_loc)
+            self.err_rel_list.append(err_rel_list_loc)
+            self.i_conv_list.append(i_conv_list_loc)     
 
         if self.verbose>0 and iter_max>0 and (i_conv==iter_max):
             print(f"reached max PC iterations at i_xi={self.i_xi}",

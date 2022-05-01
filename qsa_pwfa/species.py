@@ -25,26 +25,20 @@ class BaseSpecie:
             self.N_r = N_r
             self.r0 = L_r / N_r * np.arange(1, N_r+1)
             self.dr0 = np.gradient(self.r0)
-
             self.r0 -= 0.5*self.dr0
-            self.r = self.r0.copy()
-            self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
-            self.dQ[0] = 0.125 * self.dr0[0]**2
-
-            self.rmax = self.r0.max()
-
         elif r_grid_user is not None:
             self.r0 = r_grid_user.copy()
-            self.r = self.r0.copy()
-            self.rmax = self.r0.max()
-            self.L_r = self.rmax
+            self.L_r = self.r0.max()
             self.N_r = self.r0.size
             self.dr0 = np.gradient(self.r0)
-            self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
-            self.dQ[0] = 0.5 * self.dr0[0]**2
         else:
             print('need to define the grid')
 
+        self.r = self.r0.copy()
+        self.rmax = self.r0.max()
+        self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
+        self.dQ[0] = 0.125 * self.dr0[0]**2
+        
     def get_dAz_dr(self, source_specie):
         self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r,
                                         source_specie.r,
