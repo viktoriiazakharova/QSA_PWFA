@@ -1,14 +1,15 @@
 import numpy as np
+from tqdm import tqdm
 
 class Simulation:
 
     def __init__(self, L_xi, N_xi, verbose=1):
 
         self.verbose = verbose
-        self.init_xi_grid(L_xi, N_xi)
         self.external_fields = []
         self.species = []
         self.diagnostics = []
+        self._init_xi_grid(L_xi, N_xi)
 
     def add_external_field(self, external_field):
         self.external_fields.append(external_field)
@@ -16,7 +17,13 @@ class Simulation:
     def add_specie(self, specie):
         self.species.append(specie)
 
-    def init_xi_grid(self, L_xi, N_xi):
+    def run(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05):
+        for i_xi in tqdm(range(self.N_xi-1)):
+            self._advance_xi(iter_max=iter_max, 
+                            rel_err_max=rel_err_max,
+                            mixing_factor=mixing_factor)
+
+    def _init_xi_grid(self, L_xi, N_xi):
         # iteration counter
         self.i_xi = 0
 
@@ -27,14 +34,14 @@ class Simulation:
         self.xi = L_xi / N_xi * np.arange(N_xi)
         self.dxi = self.xi[1] - self.xi[0]
 
-    def advance_xi(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05):
+    def _advance_xi(self, iter_max, rel_err_max, mixing_factor):
 
         for specie in self.species:
             specie.reinit()
             for specie_src in self.species:
                 specie.get_Psi(specie_src)
 
-            specie.get_v_z_plasma()
+            specie.get_v_z()
 
         for specie in self.species:
             for specie_src in self.species:
@@ -46,7 +53,7 @@ class Simulation:
                 specie.dAz_dr += ext_field.get_dAz_dr(specie.r,
                                                       self.xi[self.i_xi])
 
-            specie.get_force_reduced()
+            specie.get_Fr_part()
 
         err_rel = 1.0
         i_conv = 0
@@ -63,7 +70,7 @@ class Simulation:
                     specie.get_dAr_dxi(specie_src)
 
             for specie in self.species:
-                specie.get_force_full()
+                specie.get_Fr()
 
                 specie.get_d2r_dxi2()
                 specie.d2r_dxi2 = mixing_factor * specie.d2r_dxi2 + \

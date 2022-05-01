@@ -1,25 +1,22 @@
 import numpy as np
 from .inline_methods import *
 
-plasma_motion_fields = [
-            'dr_dxi',
-            'd2r_dxi2',
-            'd2r_dxi2_prev',
-            'F_part',
-            'F',
-            'T',
-            ]
-
-base_fields = [
-            'v_z',
-            'dAr_dxi',
-            'dAz_dr',
-            'Psi',
-            'dPsi_dr',
-            'dPsi_dxi',
-            ]
 
 class BaseSpecie:
+
+    base_fields = [
+        'Psi',
+        'dPsi_dr',
+        'dPsi_dxi',
+        'dAr_dxi',
+        'dAz_dr',
+        'Fr',
+        'Fr_part',
+        ]
+            
+    def init_data(self, fields):
+        for fld in fields:
+            setattr(self, fld, np.zeros_like(self.r))
 
     def init_r_grid(self, L_r, N_r, r_grid_user):
 
@@ -48,32 +45,6 @@ class BaseSpecie:
         else:
             print('need to define the grid')
 
-    def init_data(self, fields):
-        for fld in fields:
-            setattr(self, fld, np.zeros_like(self.r))
-
-    def get_Density(self, source_specie):
-        weights = source_specie.dQ / (1 - source_specie.v_z)
-        self.Density = get_Density_inline(self.Density, self.r0, self.dr0,
-                                          source_specie.r, weights)
-        self.Density /= self.dQ
-
-    def get_J_z(self, source_specie):
-        weights = source_specie.dQ * source_specie.v_z/ (1 - source_specie.v_z)
-        self.J_z = get_Density_inline(self.J_z, self.r0, self.dr0,
-                                      source_specie.r, weights)
-        self.J_z /= self.dQ
-
-    def get_v_z(self, source_specie):
-        weights = source_specie.dQ / (1 - source_specie.v_z)
-        weights_vz = weights * source_specie.v_z
-        dens_temp = np.zeros_like(self.r0)
-        dens_temp = get_Density_inline(dens_temp, self.r0, self.dr0,
-                                      source_specie.r, weights)
-        self.v_z = get_Density_inline(self.v_z, self.r0, self.dr0,
-                                      source_specie.r, weights_vz)
-        self.v_z /= dens_temp
-
     def get_dAz_dr(self, source_specie):
         self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r,
                                         source_specie.r,
@@ -98,6 +69,8 @@ class BaseSpecie:
                                               source_specie.r,
                                               source_specie.r0,
                                               source_specie.dQ)
+        else:
+            return                                    
 
     def get_dPsi_dxi(self, source_specie):
         self.dPsi_dxi = get_dPsi_dxi_inline(self.dPsi_dxi, self.r,
@@ -106,11 +79,6 @@ class BaseSpecie:
                                             source_specie.dr_dxi,
                                             source_specie.dQ)
 
-    def get_v_z_plasma(self):
-        self.T[:] = (1. + (self.dr_dxi * (1. + self.Psi)) ** 2) / \
-                    (1. + self.Psi) ** 2
-        self.v_z[:] = (self.T - 1.) / (self.T + 1.)
-
     def get_dAr_dxi(self, source_specie):
         self.dAr_dxi = get_dAr_dxi_inline(self.dAr_dxi, self.r,
                                           source_specie.r,
@@ -118,16 +86,36 @@ class BaseSpecie:
                                           source_specie.d2r_dxi2,
                                           source_specie.dQ)
 
-    def get_force_reduced(self):
-        self.F_part[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
+    def get_Fr_part(self):
+        self.Fr_part[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
 
-    def get_force_full(self):
-        self.F[:] = self.F_part + (1. - self.v_z) * self.dAr_dxi
+    def get_Fr(self):
+        self.Fr[:] = self.Fr_part + (1. - self.v_z) * self.dAr_dxi
         if self.particle_boundary == 1:
-            self.F *= ( self.r<=self.rmax )
+            self.Fr *= ( self.r<=self.rmax )
+
+
+class PlasmaSpecie(BaseSpecie):
+
+    motion_fields = [
+        'v_z',
+        'dr_dxi',
+        'd2r_dxi2',
+        'd2r_dxi2_prev',
+        ]
+
+    fields = motion_fields + BaseSpecie.base_fields
+
+    def reinit(self):
+        self.init_data(self.base_fields)
+
+    def get_v_z(self):
+        T = (1. + (self.dr_dxi * (1. + self.Psi)) ** 2) / \
+            (1. + self.Psi) ** 2
+        self.v_z[:] = (T - 1.) / (T + 1.)
 
     def get_d2r_dxi2(self):
-        self.d2r_dxi2[:] = ( self.F / (1. - self.v_z) \
+        self.d2r_dxi2[:] = ( self.Fr / (1. - self.v_z) \
             - self.dPsi_dxi * self.dr_dxi ) / (1 + self.Psi)
 
     def advance_motion(self, dxi):
@@ -136,7 +124,8 @@ class BaseSpecie:
             self.dr_dxi += 0.5 * self.d2r_dxi2 * dxi
             fix_crossing_axis_rp(self.r, self.dr_dxi)
 
-class NeutralUniformPlasma(BaseSpecie):
+
+class NeutralUniformPlasma(PlasmaSpecie):
 
     def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1,
                  particle_boundary=1):
@@ -149,13 +138,10 @@ class NeutralUniformPlasma(BaseSpecie):
         self.init_r_grid(L_r, N_r, r_grid_user)
         self.dQ *= n_p
 
-        self.fields = plasma_motion_fields + base_fields
         self.init_data(self.fields)
 
-    def reinit(self):
-        self.init_data(base_fields)
 
-class NeutralNoneUniformPlasma(BaseSpecie):
+class NeutralNoneUniformPlasma(PlasmaSpecie):
 
     def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
                  particle_boundary=0):
@@ -168,11 +154,8 @@ class NeutralNoneUniformPlasma(BaseSpecie):
         self.init_r_grid(L_r, N_r, r_grid_user)
         self.dQ *= dens_func(self.r0)
 
-        self.fields = plasma_motion_fields + base_fields
         self.init_data(self.fields)
 
-    def reinit(self):
-        self.init_data(base_fields)
         
 class Grid(BaseSpecie):
 
@@ -181,3 +164,29 @@ class Grid(BaseSpecie):
         self.particle_boundary = 0
         self.type = "Grid"
         self.init_r_grid(L_r, N_r, r_grid_user)
+
+    def get_Density(self, source_specie):
+        weights = source_specie.dQ / (1 - source_specie.v_z)
+        Density_loc = np.zeros_like(self.Density)
+        Density_loc = get_Density_inline(Density_loc, self.r0, self.dr0,
+                                         source_specie.r, weights)
+        Density_loc /= self.dQ
+        self.Density += Density_loc
+
+    def get_J_z(self, source_specie):
+        weights = source_specie.dQ * source_specie.v_z/ (1 - source_specie.v_z)
+        J_z_loc =  np.zeros_like(self.J_z)
+        J_z_loc = get_Density_inline(J_z_loc, self.r0, self.dr0,
+                                     source_specie.r, weights)
+        J_z_loc /= self.dQ
+        self.J_z += J_z_loc
+
+    def get_v_z(self, source_specie):
+        weights = source_specie.dQ / (1 - source_specie.v_z)
+        weights_vz = weights * source_specie.v_z
+        dens_temp = np.zeros_like(self.r0)
+        dens_temp = get_Density_inline(dens_temp, self.r0, self.dr0,
+                                      source_specie.r, weights)
+        self.v_z = get_Density_inline(self.v_z, self.r0, self.dr0,
+                                      source_specie.r, weights_vz)
+        self.v_z /= dens_temp
