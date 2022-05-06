@@ -39,21 +39,21 @@ class BaseSpecie:
         self.dQ[0] = 0.125 * self.dr0[0]**2
         
     def get_dAz_dr(self, source_specie):
-        self.dAz_dr = methods_inline['dAz_dr'][source_specie.type](
+        self.dAz_dr = methods_inline[source_specie.type]['dAz_dr'](
                 self.dAz_dr, self.r,
                 source_specie.r,
                 source_specie.v_z,
                 source_specie.dQ)
 
     def get_Psi(self, source_specie):
-        self.Psi = methods_inline['Psi'][source_specie.type](
+        self.Psi = methods_inline[source_specie.type]['Psi'](
                                 self.Psi, self.r,
                                 source_specie.r,
                                 source_specie.r0,
                                 source_specie.dQ)
 
     def get_dPsi_dr(self, source_specie):
-        self.dPsi_dr = methods_inline['dPsi_dr'][source_specie.type](
+        self.dPsi_dr = methods_inline[source_specie.type]['dPsi_dr'](
                                 self.dPsi_dr, self.r,
                                 source_specie.n_p,
                                 source_specie.r,
@@ -61,7 +61,7 @@ class BaseSpecie:
                                 source_specie.dQ)                    
 
     def get_dPsi_dxi(self, source_specie):
-        self.dPsi_dxi = methods_inline['dPsi_dxi'][source_specie.type](
+        self.dPsi_dxi = methods_inline[source_specie.type]['dPsi_dxi'](
                                 self.dPsi_dxi, self.r,
                                 source_specie.r,
                                 source_specie.r0,
@@ -69,7 +69,7 @@ class BaseSpecie:
                                 source_specie.dQ)
 
     def get_dAr_dxi(self, source_specie):
-        self.dAr_dxi = methods_inline['dAr_dxi'][source_specie.type](
+        self.dAr_dxi = methods_inline[source_specie.type]['dAr_dxi'](
                                 self.dAr_dxi, self.r,
                                 source_specie.r,
                                 source_specie.dr_dxi,
@@ -129,7 +129,7 @@ class NeutralUniformPlasma(PlasmaSpecie):
         self.init_r_grid(L_r, N_r, r_grid_user)
         self.dQ *= n_p
         self.dQ *= self.q
-        
+
         self.init_data(self.fields)
 
 
@@ -239,7 +239,7 @@ class Grid(BaseSpecie):
             weights = source_specie.dQ / (1 - source_specie.v_z)
         Density_loc = np.zeros_like(self.Density)
         
-        Density_loc = methods_inline['Density'][source_specie.type](
+        Density_loc = methods_inline[source_specie.type]['Density'](
                                     Density_loc, self.r0, self.dr0,
                                     source_specie.r, weights)
         Density_loc /= self.dQ
@@ -252,7 +252,7 @@ class Grid(BaseSpecie):
             weights = source_specie.dQ * source_specie.v_z \
                     / (1 - source_specie.v_z)
         J_z_loc =  np.zeros_like(self.J_z)
-        J_z_loc = methods_inline['Density'][source_specie.type](
+        J_z_loc = methods_inline[source_specie.type]['Density'](
                                     J_z_loc, self.r0, self.dr0,
                                     source_specie.r, weights)
         J_z_loc /= self.dQ
@@ -266,11 +266,11 @@ class Grid(BaseSpecie):
     
         weights_vz = weights * source_specie.v_z
         dens_temp = np.zeros_like(self.r0)
-        dens_temp = methods_inline['Density'][source_specie.type](
+        dens_temp = methods_inline[source_specie.type]['Density'](
                                     dens_temp, self.r0, self.dr0,
                                     source_specie.r, weights)
 
-        self.v_z = methods_inline['Density'][source_specie.type](
+        self.v_z = methods_inline[source_specie.type]['Density'](
                                     self.v_z, self.r0, self.dr0,
                                     source_specie.r, weights_vz)
         self.v_z /= dens_temp

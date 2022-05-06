@@ -138,40 +138,36 @@ def dummy_function(val, *args, **kw_args):
     return val
 
 methods_inline = {
-    "Density":{
-        "Grid": dummy_function,  # dummy
-        "Bunch": get_Density_inline, # dummy
-        "NeutralUniformPlasma": get_Density_inline,
-        "NeutralNoneUniformPlasma": get_Density_inline,
-    },
-    "Psi":{
-        "Grid": dummy_function,  # dummy
-        "Bunch": dummy_function, # dummy
-        "NeutralUniformPlasma": get_Psi_inline,
-        "NeutralNoneUniformPlasma": get_Psi_inline,
-    },
-    "dPsi_dr":{
-        "Grid": dummy_function, # dummy
-        "Bunch": dummy_function,     # dummy
-        "NeutralUniformPlasma": get_dPsi_dr_unif_inline,
-        "NeutralNoneUniformPlasma": get_dPsi_dr_inline,
-    },
-    "dAz_dr":{
-        "Grid": dummy_function, # dummy
-        "Bunch": get_dAz_dr_bunch_inline, 
-        "NeutralUniformPlasma": get_dAz_dr_inline,
-        "NeutralNoneUniformPlasma": get_dAz_dr_inline,
-    },
-    "dPsi_dxi":{
-        "Grid": dummy_function, # dummy
-        "Bunch": dummy_function,  # dummy
-        "NeutralUniformPlasma": get_dPsi_dxi_inline,
-        "NeutralNoneUniformPlasma": get_dPsi_dxi_inline,
-    },
-    "dAr_dxi":{
-        "Grid": dummy_function, # dummy
-        "Bunch": dummy_function,  # dummy
-        "NeutralUniformPlasma": get_dAr_dxi_inline,
-        "NeutralNoneUniformPlasma": get_dAr_dxi_inline,
-    },    
+     "NeutralUniformPlasma": {
+         "Density": get_Density_inline,
+         "Psi": get_Psi_inline,
+         "dPsi_dr": get_dPsi_dr_unif_inline,
+         "dAz_dr": get_dAz_dr_inline,
+         "dPsi_dxi": get_dPsi_dxi_inline,
+         "dAr_dxi": get_dAr_dxi_inline,
+     },
+     "NeutralNoneUniformPlasma": {
+         "Density": get_Density_inline,
+         "Psi": get_Psi_inline,
+         "dPsi_dr": get_dPsi_dr_inline,
+         "dAz_dr": get_dAz_dr_inline,
+         "dPsi_dxi": get_dPsi_dxi_inline,
+         "dAr_dxi": get_dAr_dxi_inline,
+     },
+     "Bunch": {
+         "Density": get_Density_inline,
+         "Psi": dummy_function,
+         "dPsi_dr": dummy_function,
+         "dAz_dr": get_dAz_dr_bunch_inline,
+         "dPsi_dxi": dummy_function,
+         "dAr_dxi": dummy_function,
+     },
+     "Grid": {
+         "Density": dummy_function,
+         "Psi": dummy_function,
+         "dPsi_dr": dummy_function,
+         "dAz_dr": dummy_function,
+         "dPsi_dxi": dummy_function,
+         "dAr_dxi": dummy_function,
+     },
 }
