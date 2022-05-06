@@ -143,6 +143,7 @@ class NeutralNoneUniformPlasma(PlasmaSpecie):
 
         self.init_r_grid(L_r, N_r, r_grid_user)
         self.dQ *= dens_func(self.r0)
+        self.n_p = dens_func(self.r0).max()
 
         self.init_data(self.fields)
 

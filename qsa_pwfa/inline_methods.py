@@ -74,7 +74,7 @@ def get_dPsi_dr_unif_inline(dPsi_dr_target, r_target, n_p_source, r_source,
     return dPsi_dr_target
 
 @njit(parallel=True)
-def get_dPsi_dr_inline(dPsi_dr_target, r_target, r_source,
+def get_dPsi_dr_inline(dPsi_dr_target, r_target, n_p_source, r_source,
                        r0_source, dQ_source):
 
     for ir in prange(r_target.size):
