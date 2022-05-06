@@ -45,10 +45,11 @@ class Simulation:
     def _advance_xi(self, iter_max, rel_err_max, mixing_factor):
 
         for specie in self.species:
-            specie.reinit()
+            specie.reinit(self.i_xi)
+
+        for specie in self.species:
             for specie_src in self.species:
                 specie.get_Psi(specie_src)
-
             specie.get_v_z()
 
         for specie in self.species:
