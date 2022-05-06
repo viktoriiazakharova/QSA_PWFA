@@ -93,21 +93,21 @@ class PlasmaSpecie(BaseSpecie):
         self.init_data(self.base_fields)
 
     def get_v_z(self):
-        T = (1. + (self.dr_dxi * (1. + self.Psi)) ** 2) / \
-            (1. + self.Psi) ** 2
+        T = (1. + (self.dr_dxi * (1. - self.q * self.Psi)) ** 2) / \
+            (1. - self.q * self.Psi) ** 2
         self.v_z[:] = (T - 1.) / (T + 1.)
 
     def get_Fr_part(self):
-        self.Fr_part[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
+        self.Fr_part[:] = -self.q * (self.dPsi_dr + (1. - self.v_z) * self.dAz_dr)
 
     def get_Fr(self):
-        self.Fr[:] = self.Fr_part + (1. - self.v_z) * self.dAr_dxi
+        self.Fr[:] = self.Fr_part - self.q *  (1. - self.v_z) * self.dAr_dxi
         if self.particle_boundary == 1:
             self.Fr *= ( self.r<=self.rmax )
             
     def get_d2r_dxi2(self):
         self.d2r_dxi2[:] = ( self.Fr / (1. - self.v_z) \
-            - self.dPsi_dxi * self.dr_dxi ) / (1 + self.Psi)
+            + self.q *  self.dPsi_dxi * self.dr_dxi ) / (1 - self.q *  self.Psi)
 
     def advance_motion(self, dxi):
         self.dr_dxi += 0.5 * self.d2r_dxi2 * dxi
@@ -118,31 +118,34 @@ class PlasmaSpecie(BaseSpecie):
 class NeutralUniformPlasma(PlasmaSpecie):
 
     def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1,
-                 particle_boundary=1):
+                 particle_boundary=1, q=-1):
 
         self.type = "NeutralUniformPlasma"
 
         self.particle_boundary = particle_boundary
         self.n_p = n_p
+        self.q = q
 
         self.init_r_grid(L_r, N_r, r_grid_user)
         self.dQ *= n_p
-
+        self.dQ *= self.q
+        
         self.init_data(self.fields)
 
 
 class NeutralNoneUniformPlasma(PlasmaSpecie):
 
     def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
-                 particle_boundary=0):
+                 particle_boundary=0, q=-1):
 
         self.type = "NeutralNoneUniformPlasma"
 
         self.particle_boundary = particle_boundary
-        self.dens_func = dens_func
+        self.q = q
 
         self.init_r_grid(L_r, N_r, r_grid_user)
         self.dQ *= dens_func(self.r0)
+        self.dQ *= self.q
         self.n_p = dens_func(self.r0).max()
 
         self.init_data(self.fields)
