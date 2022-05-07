@@ -19,19 +19,25 @@ class BaseSpecie:
 
     def init_r_grid(self, L_r, N_r, r_grid_user):
 
-        if (L_r is not None) and (N_r is not None):
-            self.L_r = L_r
-            self.N_r = N_r
-            self.r0 = L_r / N_r * np.arange(1, N_r+1)
-            self.dr0 = np.gradient(self.r0)
-            self.r0 -= 0.5*self.dr0
-        elif r_grid_user is not None:
+        if r_grid_user is not None:
+            self.user_grid = True
+        elif (L_r is not None) and (N_r is not None):
+            self.user_grid = False
+        else:
+            print('missing parameters to define the grid')
+            return
+
+        if self.user_grid:
             self.r0 = r_grid_user.copy()
             self.L_r = self.r0.max()
             self.N_r = self.r0.size
             self.dr0 = np.gradient(self.r0)
         else:
-            print('need to define the grid')
+            self.L_r = L_r
+            self.N_r = N_r
+            self.r0 = L_r / N_r * np.arange(1, N_r+1)
+            self.dr0 = np.gradient(self.r0)
+            self.r0 -= 0.5*self.dr0
 
         self.r = self.r0.copy()
         self.rmax = self.r0.max()
@@ -89,7 +95,7 @@ class PlasmaSpecie(BaseSpecie):
 
     fields = motion_fields + BaseSpecie.base_fields
 
-    def reinit(self, i_xi=None):
+    def reinit_data(self, i_xi=None):
         self.init_data(self.base_fields)
 
     def get_v_z(self):
@@ -114,6 +120,10 @@ class PlasmaSpecie(BaseSpecie):
         self.r += self.dr_dxi * dxi
         self.dr_dxi += 0.5 * self.d2r_dxi2 * dxi
         fix_crossing_axis_rp(self.r, self.dr_dxi)
+
+    def refresh_plasma(self):
+        self.r[:] = self.r0
+        self.init_data(self.fields)
 
 class NeutralUniformPlasma(PlasmaSpecie):
 
@@ -150,18 +160,12 @@ class NeutralNoneUniformPlasma(PlasmaSpecie):
 
         self.init_data(self.fields)
 
-
 class GaussianBunch(BaseSpecie):
-    dummy_motion_fields = [
-        'dr_dxi',
-        'd2r_dxi2',
-        'd2r_dxi2_prev',
-        ]
 
-    fields = BaseSpecie.base_fields + dummy_motion_fields
+    fields = BaseSpecie.base_fields 
 
-    def __init__(self, n_p, sigma_r, sigma_xi, xi_0, Nr,
-                 simulation, q=-1):
+    def __init__( self, simulation, n_p, sigma_r, sigma_xi, xi_0, Nr,
+                  q=-1, gamma_b = 1e4, delta_gamma=0., eps_r=0. ):
 
         self.particle_boundary = 0
         self.type = "Bunch"
@@ -171,6 +175,9 @@ class GaussianBunch(BaseSpecie):
         self.sigma_r = sigma_r
         self.xi_0 = xi_0
         self.sigma_xi = sigma_xi
+        self.gamma_b = gamma_b
+        self.delta_gamma = delta_gamma
+        self.eps_r = eps_r
         self.simulation = simulation
         self.init_particles()
 
@@ -188,7 +195,6 @@ class GaussianBunch(BaseSpecie):
         self.r_bunch = r[None,:] * np.ones_like(xi)[:, None]
         self.xi_bunch = xi[:, None] * np.ones_like(r)[None, :]
 
-        self.rmax = r.max()
         self.dQ_bunch = dr0 * (self.r_bunch - 0.5 * dr0)
         self.dQ_bunch[:, 0] = 0.125 * dr0[0]**2
 
@@ -196,33 +202,67 @@ class GaussianBunch(BaseSpecie):
                 - 0.5 * self.r_bunch**2 / self.sigma_r**2 \
                 - (self.xi_bunch - self.xi_0)**2 / self.sigma_xi**2 )
 
-    def reinit(self, i_xi):
+        self.p_r_bunch = self.eps_r / self.sigma_r * np.random.randn(*self.r_bunch.shape)
+        gamma_p = self.gamma_b + self.delta_gamma * np.random.randn(*self.r_bunch.shape) 
+        self.p_z_bunch = (gamma_p**2 - 1. - self.p_r_bunch**2)**0.5
+
+        self.v_z_bunch = self.p_z_bunch / gamma_p
+        self.dr_dxi_bunch = self.p_r_bunch / gamma_p
+
+        self.rmax = r.max()
+        self.r = r.copy()
+        self.r0 = r.copy()
+        self.v_z = np.ones_like(self.r)
+        self.dQ = np.zeros_like(self.r)
+        self.p_z  = np.zeros_like(self.r)
+        self.p_r  = np.zeros_like(self.r)
+        self.dr_dxi = np.zeros_like(self.r)
+
+    def reinit_data(self, i_xi):
         if (i_xi >= self.i_xi_min) and (i_xi < self.i_xi_max):
             self.r = self.r_bunch[i_xi - self.i_xi_min]
-            self.r0 = self.r
+            self.xi = self.xi_bunch[i_xi - self.i_xi_min]
             self.dQ = self.dQ_bunch[i_xi - self.i_xi_min]
+            self.v_z = self.v_z_bunch[i_xi - self.i_xi_min]
+            self.p_z = self.p_z_bunch[i_xi - self.i_xi_min]
+            self.p_r = self.p_r_bunch[i_xi - self.i_xi_min]
+            self.dr_dxi = self.dr_dxi_bunch[i_xi - self.i_xi_min]
+            self.r0 = self.r
         else:
             self.r = np.zeros(0)
-            self.r0 = self.r
             self.dQ = np.zeros(0)
+            self.xi = np.zeros(0)
+            self.p_z = np.zeros(0)
+            self.p_r  = np.zeros(0)
+            self.v_z = np.zeros(0)
+            self.dr_dxi = np.zeros(0)
+            self.r0 = self.r
 
         self.init_data(self.fields)
 
-    def get_Fr_part(self):
-        return
+    def advance_motion(self, dt):
+        Ez = self.dPsi_dxi
+        Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
+        Bt = -self.dAz_dr - self.dAr_dxi
 
-    def get_Fr(self):
-        return
+        self.p_z += 0.5 * self.q * Ez * dt
+        self.p_r += 0.5 * self.q * Er * dt
+        self.p_r += - 0.5 * self.q * self.v_z * Bt * dt
 
-    def get_v_z(self):
-        self.v_z = np.ones_like(self.r)
+        gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
+        self.v_z[:] = self.p_z / gamma_p
+        self.dr_dxi[:] = self.p_r  / gamma_p
 
-    def get_d2r_dxi2(self):
-        return
+        self.xi += (self.v_z-1) * dt
+        self.r += self.dr_dxi * dt
 
-    def advance_motion(self, dxi):
-        return
+        self.p_z += 0.5 * self.q * Ez * dt
+        self.p_r += 0.5 * self.q * Er * dt
+        self.p_r += - 0.5 * self.q * self.v_z * Bt * dt
 
+        gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
+        self.v_z[:] = self.p_z / gamma_p
+        self.dr_dxi[:] = self.p_r  / gamma_p
 
 class Grid(BaseSpecie):
 
