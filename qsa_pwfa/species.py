@@ -227,7 +227,7 @@ class GaussianBunch(BaseSpecie):
             self.p_z = self.p_z_bunch[i_xi - self.i_xi_min]
             self.p_r = self.p_r_bunch[i_xi - self.i_xi_min]
             self.dr_dxi = self.dr_dxi_bunch[i_xi - self.i_xi_min]
-            self.r0 = self.r
+            # self.r0 = self.r
         else:
             self.r = np.zeros(0)
             self.dQ = np.zeros(0)
@@ -236,7 +236,7 @@ class GaussianBunch(BaseSpecie):
             self.p_r  = np.zeros(0)
             self.v_z = np.zeros(0)
             self.dr_dxi = np.zeros(0)
-            self.r0 = self.r
+            # self.r0 = self.r
 
         self.init_data(self.fields)
 

@@ -79,6 +79,7 @@ class SpeciesDiagnostics:
           'dAz_dr'
         """
 
+        self.specie = specie
         self.grid = specie
         self.simulation = simulation
         self.fields = fields.copy()
@@ -97,15 +98,15 @@ class SpeciesDiagnostics:
             self.i_xi = np.arange(simulation.xi.size)[::xi_step]
 
         self.xi = simulation.xi[self.i_xi]
-        self.grid.init_data(self.fields)
+        self.specie.init_data(self.fields)
 
     def make_dataset(self):
         self.Data = {}
-        self.Data['r'] = np.zeros((self.i_xi.size, self.grid.r.size))
-        self.Data['r0'] = self.grid.r0.copy()
-        self.Data['dQ'] = self.grid.dQ.copy()
+        self.Data['r'] = np.zeros((self.i_xi.size, self.specie.r0.size))
+        self.Data['r0'] = self.specie.r0.copy()
+        self.Data['dQ'] = self.specie.dQ.copy()
         for fld in self.fields:
-            self.Data[fld] = np.zeros((self.i_xi.size, self.grid.r.size))
+            self.Data[fld] = np.zeros((self.i_xi.size, self.specie.r0.size))
 
     def save_dataset(self):
         self.outputs.append(deepcopy(self.Data))
@@ -113,9 +114,9 @@ class SpeciesDiagnostics:
     def make_record(self, i_xi):
         if i_xi in self.i_xi:
             i_xi_loc = (self.i_xi<i_xi).sum()
-            N_r = self.grid.r.size
-            self.Data['r'][i_xi_loc, :N_r] = self.grid.r.copy()
+            N_r = self.specie.r.size
+            self.Data['r'][i_xi_loc, :N_r] = self.specie.r.copy()
             for fld in self.fields:
-                self.Data[fld][i_xi_loc, :N_r] = getattr(self.grid, fld)
+                self.Data[fld][i_xi_loc, :N_r] = getattr(self.specie, fld)
         else:
             return
