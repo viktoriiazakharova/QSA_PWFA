@@ -53,14 +53,14 @@ class Simulation:
             diag.make_dataset()   
 
         for i_xi in tqdm(range(self.N_xi-1)):
-            self._advance_xi(iter_max=iter_max, 
+            self._advance_xi(iter_max=iter_max,
                             rel_err_max=rel_err_max,
                             mixing_factor=mixing_factor)
-    
+
         for diag in self.diagnostics:
             diag.save_dataset()
 
-    def run_steps(self, N_steps, iter_max=30, rel_err_max=1e-2, 
+    def run_steps(self, N_steps, iter_max=30, rel_err_max=1e-2,
                   mixing_factor=0.05, track_convergence=False):
 
         self.track_convergence = track_convergence
@@ -69,19 +69,19 @@ class Simulation:
             self.err_rel_list = []
             self.i_conv_list = []
 
-        with tqdm(total=N_steps *(self.N_xi-1)) as pbar:
+        with tqdm( total=N_steps*(self.N_xi-1) ) as pbar:
 
-            for i_step in tqdm(range(N_steps), position=0):
+            for i_step in range(N_steps):
                 self.i_xi = 0
 
                 for diag in self.diagnostics:
-                    diag.make_dataset()                
+                    diag.make_dataset()
 
                 for specie in self.species_plasma:
                     specie.refresh_plasma()
 
-                for i_xi in tqdm(range(self.N_xi-1)):
-                    self._advance_xi(iter_max=iter_max, 
+                for i_xi in range(self.N_xi-1):
+                    self._advance_xi(iter_max=iter_max,
                                     rel_err_max=rel_err_max,
                                     mixing_factor=mixing_factor)
                     pbar.update(1)
