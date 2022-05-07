@@ -255,6 +255,7 @@ class GaussianBunch(BaseSpecie):
 
         self.xi += (self.v_z-1) * dt
         self.r += self.dr_dxi * dt
+        fix_crossing_axis_rp(self.r, self.dr_dxi)
 
         self.p_z += 0.5 * self.q * Ez * dt
         self.p_r += 0.5 * self.q * Er * dt
@@ -263,6 +264,8 @@ class GaussianBunch(BaseSpecie):
         gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
         self.v_z[:] = self.p_z / gamma_p
         self.dr_dxi[:] = self.p_r  / gamma_p
+
+        fix_crossing_axis_rp(self.r, self.dr_dxi)
 
 class Grid(BaseSpecie):
 
