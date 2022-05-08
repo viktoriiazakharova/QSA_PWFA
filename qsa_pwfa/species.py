@@ -1,6 +1,8 @@
 from ast import Return
 import numpy as np
-from .inline_methods import fix_crossing_axis_rp, methods_inline
+from .inline_methods import fix_crossing_axis_rv
+from .inline_methods import fix_crossing_axis_rvp
+from .inline_methods import methods_inline
 
 
 class BaseSpecie:
@@ -119,7 +121,7 @@ class PlasmaSpecie(BaseSpecie):
         self.dr_dxi += 0.5 * self.d2r_dxi2 * dxi
         self.r += self.dr_dxi * dxi
         self.dr_dxi += 0.5 * self.d2r_dxi2 * dxi
-        fix_crossing_axis_rp(self.r, self.dr_dxi)
+        fix_crossing_axis_rv(self.r, self.dr_dxi)
 
     def refresh_plasma(self):
         self.r[:] = self.r0
@@ -227,7 +229,6 @@ class GaussianBunch(BaseSpecie):
             self.p_z = self.p_z_bunch[i_xi - self.i_xi_min]
             self.p_r = self.p_r_bunch[i_xi - self.i_xi_min]
             self.dr_dxi = self.dr_dxi_bunch[i_xi - self.i_xi_min]
-            # self.r0 = self.r
         else:
             self.r = np.zeros(0)
             self.dQ = np.zeros(0)
@@ -236,18 +237,19 @@ class GaussianBunch(BaseSpecie):
             self.p_r  = np.zeros(0)
             self.v_z = np.zeros(0)
             self.dr_dxi = np.zeros(0)
-            # self.r0 = self.r
 
         self.init_data(self.fields)
 
     def advance_motion(self, dt):
-        Ez = self.dPsi_dxi
-        Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
-        Bt = -self.dAz_dr - self.dAr_dxi
+        # Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
+        # Bt = -self.dAz_dr - self.dAr_dxi
 
-        self.p_z += 0.5 * self.q * Ez * dt
-        self.p_r += 0.5 * self.q * Er * dt
-        self.p_r += - 0.5 * self.q * self.v_z * Bt * dt
+        Fz = self.q * self.dPsi_dxi * dt
+        Fr = - self.q * dt \
+            * (self.dPsi_dr + (self.dAz_dr + self.dAr_dxi) * (1 - self.v_z) )
+
+        self.p_z += 0.5 * Fz
+        self.p_r += 0.5 * Fr
 
         gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
         self.v_z[:] = self.p_z / gamma_p
@@ -255,17 +257,15 @@ class GaussianBunch(BaseSpecie):
 
         self.xi += (self.v_z-1) * dt
         self.r += self.dr_dxi * dt
-        fix_crossing_axis_rp(self.r, self.dr_dxi)
 
-        self.p_z += 0.5 * self.q * Ez * dt
-        self.p_r += 0.5 * self.q * Er * dt
-        self.p_r += - 0.5 * self.q * self.v_z * Bt * dt
+        self.p_z += 0.5 * Fz
+        self.p_r += 0.5 * Fr
 
         gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
         self.v_z[:] = self.p_z / gamma_p
         self.dr_dxi[:] = self.p_r  / gamma_p
 
-        fix_crossing_axis_rp(self.r, self.dr_dxi)
+        fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
 
 class Grid(BaseSpecie):
 

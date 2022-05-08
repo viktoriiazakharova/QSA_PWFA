@@ -14,13 +14,21 @@ def fast_compare(x, x1):
     return val
 
 @njit(parallel=True)
-def fix_crossing_axis_rp(r, p):
-    Nr = r.size
-    for j in prange(Nr):
+def fix_crossing_axis_rv(r, vr):
+    for j in prange(r.size):
         if r[j] < 0:
             r[j] = np.abs(r[j])
-            p[j] = np.abs(p[j])
-    return r, p
+            vr[j] = np.abs(vr[j])
+    return r, vr
+
+@njit(parallel=True)
+def fix_crossing_axis_rvp(r, vr, pr):
+    for j in prange(r.size):
+        if r[j] < 0:
+            r[j] = np.abs(r[j])
+            vr[j] = np.abs(vr[j])
+            pr[j] = np.abs(pr[j])
+    return r, vr, pr
 
 @njit
 def get_Density_inline(Density_target, r_target, dr_target,
