@@ -127,70 +127,20 @@ class PlasmaSpecie(BaseSpecie):
         self.r[:] = self.r0
         self.init_data(self.fields)
 
-class NeutralUniformPlasma(PlasmaSpecie):
 
-    def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1,
-                 particle_boundary=1, q=-1):
-
-        self.type = "NeutralUniformPlasma"
-
-        self.particle_boundary = particle_boundary
-        self.n_p = n_p
-        self.q = q
-
-        self.init_r_grid(L_r, N_r, r_grid_user)
-        self.dQ *= n_p
-        self.dQ *= self.q
-
-        self.init_data(self.fields)
-
-
-class NeutralNoneUniformPlasma(PlasmaSpecie):
-
-    def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
-                 particle_boundary=0, q=-1):
-
-        self.type = "NeutralNoneUniformPlasma"
-
-        self.particle_boundary = particle_boundary
-        self.q = q
-
-        self.init_r_grid(L_r, N_r, r_grid_user)
-        self.dQ *= dens_func(self.r0)
-        self.dQ *= self.q
-        self.n_p = dens_func(self.r0).max()
-
-        self.init_data(self.fields)
-
-class GaussianBunch(BaseSpecie):
+class Bunch(BaseSpecie):
 
     fields = BaseSpecie.base_fields 
 
-    def __init__( self, simulation, n_p, sigma_r, sigma_xi, xi_0, Nr,
-                  q=-1, gamma_b = 1e4, delta_gamma=0., eps_r=0. ):
-
-        self.particle_boundary = 0
-        self.type = "Bunch"
-        self.n_p = n_p
-        self.q = q
-        self.Nr = Nr
-        self.sigma_r = sigma_r
-        self.xi_0 = xi_0
-        self.sigma_xi = sigma_xi
-        self.gamma_b = gamma_b
-        self.delta_gamma = delta_gamma
-        self.eps_r = eps_r
-        self.simulation = simulation
-        self.init_particles()
-
     def init_particles(self):
  
-        self.i_xi_min = (self.simulation.xi <= self.xi_0 - 5 * self.sigma_xi).sum()
-    
-        self.i_xi_max = (self.simulation.xi <= self.xi_0 + 5 * self.sigma_xi).sum()
+        self.xi_min = self.xi_0 - self.truncate_factor * self.sigma_xi
+        self.xi_max = self.xi_0 + self.truncate_factor * self.sigma_xi
+        self.i_xi_min = (self.simulation.xi <= self.xi_min).sum()
+        self.i_xi_max = (self.simulation.xi <= self.xi_max).sum()
 
         xi = self.simulation.xi[self.i_xi_min : self.i_xi_max + 1]
-        r = np.linspace(0, 5 * self.sigma_r, self.Nr)
+        r = np.linspace(0, self.truncate_factor * self.sigma_r, self.Nr)
         dr0 = np.gradient(r)
         r += 0.5 * dr0
 
@@ -200,9 +150,7 @@ class GaussianBunch(BaseSpecie):
         self.dQ_bunch = dr0 * (self.r_bunch - 0.5 * dr0)
         self.dQ_bunch[:, 0] = 0.125 * dr0[0]**2
 
-        self.dQ_bunch *= self.q * self.n_p * np.exp( \
-                - 0.5 * self.r_bunch**2 / self.sigma_r**2 \
-                - (self.xi_bunch - self.xi_0)**2 / self.sigma_xi**2 )
+        self.dQ_bunch *= self.q * self.n_p * self.dens_func(self.r_bunch, self.xi_bunch)
 
         self.p_r_bunch = self.eps_r / self.sigma_r * np.random.randn(*self.r_bunch.shape)
         gamma_p = self.gamma_b + self.delta_gamma * np.random.randn(*self.r_bunch.shape) 
@@ -221,7 +169,7 @@ class GaussianBunch(BaseSpecie):
         self.dr_dxi = np.zeros_like(self.r)
 
     def reinit_data(self, i_xi):
-        if (i_xi >= self.i_xi_min) and (i_xi < self.i_xi_max):
+        if (i_xi >= self.i_xi_min) and (i_xi <= self.i_xi_max):
             self.r = self.r_bunch[i_xi - self.i_xi_min]
             self.xi = self.xi_bunch[i_xi - self.i_xi_min]
             self.dQ = self.dQ_bunch[i_xi - self.i_xi_min]
@@ -241,6 +189,7 @@ class GaussianBunch(BaseSpecie):
         self.init_data(self.fields)
 
     def advance_motion(self, dt):
+        # Ez = self.dPsi_dxi
         # Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
         # Bt = -self.dAz_dr - self.dAr_dxi
 
@@ -266,6 +215,7 @@ class GaussianBunch(BaseSpecie):
         self.dr_dxi[:] = self.p_r  / gamma_p
 
         fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
+
 
 class Grid(BaseSpecie):
 
@@ -317,3 +267,65 @@ class Grid(BaseSpecie):
                                     self.v_z, self.r0, self.dr0,
                                     source_specie.r, weights_vz)
         self.v_z /= dens_temp
+
+class NeutralUniformPlasma(PlasmaSpecie):
+
+    def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1,
+                 particle_boundary=1, q=-1):
+
+        self.type = "NeutralUniformPlasma"
+
+        self.particle_boundary = particle_boundary
+        self.n_p = n_p
+        self.q = q
+
+        self.init_r_grid(L_r, N_r, r_grid_user)
+        self.dQ *= n_p
+        self.dQ *= self.q
+
+        self.init_data(self.fields)
+
+
+class NeutralNoneUniformPlasma(PlasmaSpecie):
+
+    def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
+                 particle_boundary=0, q=-1):
+
+        self.type = "NeutralNoneUniformPlasma"
+
+        self.particle_boundary = particle_boundary
+        self.q = q
+
+        self.init_r_grid(L_r, N_r, r_grid_user)
+        self.dQ *= dens_func(self.r0)
+        self.dQ *= self.q
+        self.n_p = dens_func(self.r0).max()
+
+        self.init_data(self.fields)
+
+
+class GaussianBunch(Bunch):
+    def __init__( self, simulation, n_p, sigma_r, sigma_xi, xi_0, Nr,
+                  q=-1, gamma_b = 1e4, delta_gamma=0., eps_r=0.,
+                  truncate_factor=5 ):
+
+        self.particle_boundary = 0
+        self.type = "Bunch"
+        self.n_p = n_p
+        self.q = q
+        self.Nr = Nr
+        self.sigma_r = sigma_r
+        self.xi_0 = xi_0
+        self.sigma_xi = sigma_xi
+        self.gamma_b = gamma_b
+        self.delta_gamma = delta_gamma
+        self.eps_r = eps_r
+        self.simulation = simulation
+        self.truncate_factor = truncate_factor
+        self.dens_func = self.dens_func_gauss
+        self.init_particles()
+
+    def dens_func_gauss(self, r_bunch, xi_bunch):
+        val = np.exp( - 0.5 * r_bunch**2 / self.sigma_r**2 \
+                      - 0.5 * (xi_bunch - self.xi_0)**2 / self.sigma_xi**2 )
+        return val
