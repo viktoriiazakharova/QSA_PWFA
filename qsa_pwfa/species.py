@@ -128,7 +128,7 @@ class PlasmaSpecie(BaseSpecie):
         self.init_data(self.fields)
 
 
-class Bunch(BaseSpecie):
+class BunchSpecie(BaseSpecie):
 
     fields = BaseSpecie.base_fields 
 
@@ -217,6 +217,69 @@ class Bunch(BaseSpecie):
         fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
 
 
+class NeutralUniformPlasma(PlasmaSpecie):
+
+    def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1,
+                 particle_boundary=1, q=-1):
+
+        self.type = "NeutralUniformPlasma"
+
+        self.particle_boundary = particle_boundary
+        self.n_p = n_p
+        self.q = q
+
+        self.init_r_grid(L_r, N_r, r_grid_user)
+        self.dQ *= n_p
+        self.dQ *= self.q
+
+        self.init_data(self.fields)
+
+
+class NeutralNoneUniformPlasma(PlasmaSpecie):
+
+    def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
+                 particle_boundary=0, q=-1):
+
+        self.type = "NeutralNoneUniformPlasma"
+
+        self.particle_boundary = particle_boundary
+        self.q = q
+
+        self.init_r_grid(L_r, N_r, r_grid_user)
+        self.dQ *= dens_func(self.r0)
+        self.dQ *= self.q
+        self.n_p = dens_func(self.r0).max()
+
+        self.init_data(self.fields)
+
+
+class GaussianBunch(BunchSpecie):
+    def __init__( self, simulation, n_p, sigma_r, sigma_xi, xi_0, Nr,
+                  q=-1, gamma_b = 1e4, delta_gamma=0., eps_r=0.,
+                  truncate_factor=5 ):
+
+        self.particle_boundary = 0
+        self.type = "Bunch"
+        self.n_p = n_p
+        self.q = q
+        self.Nr = Nr
+        self.sigma_r = sigma_r
+        self.xi_0 = xi_0
+        self.sigma_xi = sigma_xi
+        self.gamma_b = gamma_b
+        self.delta_gamma = delta_gamma
+        self.eps_r = eps_r
+        self.simulation = simulation
+        self.truncate_factor = truncate_factor
+        self.dens_func = self.dens_func_gauss
+        self.init_particles()
+
+    def dens_func_gauss(self, r_bunch, xi_bunch):
+        val = np.exp( - 0.5 * r_bunch**2 / self.sigma_r**2 \
+                      - 0.5 * (xi_bunch - self.xi_0)**2 / self.sigma_xi**2 )
+        return val
+
+
 class Grid(BaseSpecie):
 
     def __init__(self, L_r=None, N_r=None, r_grid_user=None):
@@ -267,65 +330,3 @@ class Grid(BaseSpecie):
                                     self.v_z, self.r0, self.dr0,
                                     source_specie.r, weights_vz)
         self.v_z /= dens_temp
-
-class NeutralUniformPlasma(PlasmaSpecie):
-
-    def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1,
-                 particle_boundary=1, q=-1):
-
-        self.type = "NeutralUniformPlasma"
-
-        self.particle_boundary = particle_boundary
-        self.n_p = n_p
-        self.q = q
-
-        self.init_r_grid(L_r, N_r, r_grid_user)
-        self.dQ *= n_p
-        self.dQ *= self.q
-
-        self.init_data(self.fields)
-
-
-class NeutralNoneUniformPlasma(PlasmaSpecie):
-
-    def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
-                 particle_boundary=0, q=-1):
-
-        self.type = "NeutralNoneUniformPlasma"
-
-        self.particle_boundary = particle_boundary
-        self.q = q
-
-        self.init_r_grid(L_r, N_r, r_grid_user)
-        self.dQ *= dens_func(self.r0)
-        self.dQ *= self.q
-        self.n_p = dens_func(self.r0).max()
-
-        self.init_data(self.fields)
-
-
-class GaussianBunch(Bunch):
-    def __init__( self, simulation, n_p, sigma_r, sigma_xi, xi_0, Nr,
-                  q=-1, gamma_b = 1e4, delta_gamma=0., eps_r=0.,
-                  truncate_factor=5 ):
-
-        self.particle_boundary = 0
-        self.type = "Bunch"
-        self.n_p = n_p
-        self.q = q
-        self.Nr = Nr
-        self.sigma_r = sigma_r
-        self.xi_0 = xi_0
-        self.sigma_xi = sigma_xi
-        self.gamma_b = gamma_b
-        self.delta_gamma = delta_gamma
-        self.eps_r = eps_r
-        self.simulation = simulation
-        self.truncate_factor = truncate_factor
-        self.dens_func = self.dens_func_gauss
-        self.init_particles()
-
-    def dens_func_gauss(self, r_bunch, xi_bunch):
-        val = np.exp( - 0.5 * r_bunch**2 / self.sigma_r**2 \
-                      - 0.5 * (xi_bunch - self.xi_0)**2 / self.sigma_xi**2 )
-        return val
