@@ -193,7 +193,7 @@ class BunchSpecie(BaseSpecie):
         # Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
         # Bt = -self.dAz_dr - self.dAr_dxi
 
-        Fz = self.q * self.dPsi_dxi * dt
+        Fz = self.q * dt * (self.dPsi_dxi - self.dr_dxi * (self.dAz_dr - self.dAr_dxi) )
         Fr = - self.q * dt \
             * (self.dPsi_dr + (self.dAz_dr + self.dAr_dxi) * (1 - self.v_z) )
 
