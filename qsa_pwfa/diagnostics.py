@@ -100,7 +100,6 @@ class BunchDiagnostics:
 
         self.i_xi = self.i_xi[::xi_step]
         self.xi = simulation.xi[self.i_xi]
-        self.bunch.init_data(self.fields)
 
     def make_dataset(self):
         self.Data = {}
@@ -117,7 +116,6 @@ class BunchDiagnostics:
         
         i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
         if i_xi_loc.size>0:
-            # print(self.simulation.xi[i_xi], self.bunch.xi[0])
             i_xi_loc = i_xi_loc[0]
             N_r_loc = self.bunch.r.size
             self.Data['r'][i_xi_loc, :N_r_loc] = self.bunch.r.copy()
@@ -161,7 +159,6 @@ class SpeciesDiagnostics:
             self.i_xi = np.arange(simulation.xi.size)[::xi_step]
 
         self.xi = simulation.xi[self.i_xi]
-        self.specie.init_data(self.fields)
 
     def make_dataset(self):
         self.Data = {}
@@ -176,11 +173,12 @@ class SpeciesDiagnostics:
         self.outputs.append(deepcopy(self.Data))
 
     def make_record(self, i_xi):
-        if i_xi in self.i_xi:
-            i_xi_loc = (self.i_xi<i_xi).sum()
+        i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
+        if i_xi_loc.size>0:
+            i_xi_loc = i_xi_loc[0]        
             N_r = self.specie.r.size
             self.Data['r'][i_xi_loc, :N_r] = self.specie.r.copy()
-            self.Data['xi'][i_xi_loc, :N_r] = self.specie.xi.copy()
+            #self.Data['xi'][i_xi_loc, :N_r] = self.specie.xi.copy()
             self.Data['dQ'][i_xi_loc, :N_r] = self.specie.dQ.copy()
             for fld in self.fields:
                 self.Data[fld][i_xi_loc, :N_r] = getattr(self.specie, fld)

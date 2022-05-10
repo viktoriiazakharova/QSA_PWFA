@@ -256,7 +256,7 @@ class NeutralNoneUniformPlasma(PlasmaSpecie):
 class GaussianBunch(BunchSpecie):
     def __init__( self, simulation, n_p, sigma_r, sigma_xi, xi_0, Nr,
                   q=-1, gamma_b = 1e4, delta_gamma=0., eps_r=0.,
-                  truncate_factor=5 ):
+                  truncate_factor=4 ):
 
         self.particle_boundary = 0
         self.type = "Bunch"
