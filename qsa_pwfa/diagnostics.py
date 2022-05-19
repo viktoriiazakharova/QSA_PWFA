@@ -163,8 +163,8 @@ class SpeciesDiagnostics:
     def make_dataset(self):
         self.Data = {}
         self.Data['r'] = np.zeros((self.i_xi.size, self.specie.r0.size))
-        self.Data['xi'] =  np.zeros((self.i_xi.size, self.specie.r0.size))
-        self.Data['dQ'] = np.zeros((self.i_xi.size, self.specie.r0.size))
+        self.Data['xi'] = self.xi.copy()
+        self.Data['dQ'] = self.specie.dQ.copy()
         self.Data['r0'] = self.specie.r0.copy()
         for fld in self.fields:
             self.Data[fld] = np.zeros((self.i_xi.size, self.specie.r0.size))
@@ -178,8 +178,6 @@ class SpeciesDiagnostics:
             i_xi_loc = i_xi_loc[0]        
             N_r = self.specie.r.size
             self.Data['r'][i_xi_loc, :N_r] = self.specie.r.copy()
-            #self.Data['xi'][i_xi_loc, :N_r] = self.specie.xi.copy()
-            self.Data['dQ'][i_xi_loc, :N_r] = self.specie.dQ.copy()
             for fld in self.fields:
                 self.Data[fld][i_xi_loc, :N_r] = getattr(self.specie, fld)
         else:
