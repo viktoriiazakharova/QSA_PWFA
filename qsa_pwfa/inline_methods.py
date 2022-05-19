@@ -3,12 +3,12 @@ import numpy as np
 
 @njit
 def fast_compare(x, x1):
-    val = np.zeros(x.size, dtype=np.float32)
+    val = np.zeros(x.size, dtype=np.int8)
     for ix in range(val.size):
         if x[ix] <= x1:
-            val[ix] = 1.0
+            val[ix] = 1
         else:
-            val[ix] = 0.0
+            val[ix] = 0
     return val
 
 @njit(parallel=True)
