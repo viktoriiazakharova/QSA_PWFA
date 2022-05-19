@@ -5,10 +5,8 @@ import numpy as np
 def fast_compare(x, x1):
     val = np.zeros(x.size, dtype=np.float32)
     for ix in range(val.size):
-        if x[ix] < x1:
+        if x[ix] <= x1:
             val[ix] = 1.0
-        elif x[ix] == x1:
-            val[ix] = 0.5
         else:
             val[ix] = 0.0
     return val
