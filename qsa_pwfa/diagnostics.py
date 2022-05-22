@@ -77,6 +77,7 @@ class BunchDiagnostics:
           'dPsi_dr'
           'dAr_xi'
           'dAz_dr'
+          'Delta'
         """
 
         self.bunch = bunch
@@ -106,8 +107,12 @@ class BunchDiagnostics:
         self.Data['r'] = np.zeros((self.i_xi.size, self.bunch.r0.size))
         self.Data['xi'] =  np.zeros((self.i_xi.size, self.bunch.r0.size))
         self.Data['dQ'] = np.zeros((self.i_xi.size, self.bunch.r0.size))
+        
         for fld in self.fields:
-            self.Data[fld] = np.zeros((self.i_xi.size, self.bunch.r0.size))
+            if fld == 'Delta':
+                self.Data['Delta'] = np.zeros(self.i_xi.size)
+            else:
+                self.Data[fld] = np.zeros((self.i_xi.size, self.bunch.r0.size))
 
     def save_dataset(self):
         self.outputs.append(deepcopy(self.Data))
@@ -122,7 +127,10 @@ class BunchDiagnostics:
             self.Data['xi'][i_xi_loc, :N_r_loc] = self.bunch.xi.copy()
             self.Data['dQ'][i_xi_loc, :N_r_loc] = self.bunch.dQ.copy()
             for fld in self.fields:
-                self.Data[fld][i_xi_loc, :N_r_loc] = getattr(self.bunch, fld)
+                if fld == 'Delta':
+                    self.Data[fld][i_xi_loc] = self.bunch.get_Delta()
+                else:
+                    self.Data[fld][i_xi_loc, :N_r_loc] = getattr(self.bunch, fld)
             else:
                 return
 
