@@ -216,6 +216,12 @@ class BunchSpecie(BaseSpecie):
 
         fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
 
+    def get_Delta(self):
+        _Ez_ = np.average(self.dPsi_dxi, weights=self.dQ)
+        _Ez2_ = np.average((self.dPsi_dxi - _Ez_)**2, weights=self.dQ)
+        Delta = _Ez2_**0.5 / _Ez_
+
+        return Delta
 
 class NeutralUniformPlasma(PlasmaSpecie):
 
