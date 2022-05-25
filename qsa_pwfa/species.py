@@ -193,12 +193,12 @@ class BunchSpecie(BaseSpecie):
         # Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
         # Bt = -self.dAz_dr - self.dAr_dxi
 
-        Fz = self.q * dt * (self.dPsi_dxi - self.dr_dxi * (self.dAz_dr - self.dAr_dxi) )
-        Fr = - self.q * dt \
+        self.Fz = self.q * dt * (self.dPsi_dxi - self.dr_dxi * (self.dAz_dr - self.dAr_dxi) )
+        self.Fr = - self.q * dt \
             * (self.dPsi_dr + (self.dAz_dr + self.dAr_dxi) * (1 - self.v_z) )
 
-        self.p_z += 0.5 * Fz
-        self.p_r += 0.5 * Fr
+        self.p_z += 0.5 * self.Fz
+        self.p_r += 0.5 * self.Fr
 
         gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
         self.v_z[:] = self.p_z / gamma_p
@@ -207,8 +207,8 @@ class BunchSpecie(BaseSpecie):
         self.xi += (self.v_z-1) * dt
         self.r += self.dr_dxi * dt
 
-        self.p_z += 0.5 * Fz
-        self.p_r += 0.5 * Fr
+        self.p_z += 0.5 * self.Fz
+        self.p_r += 0.5 * self.Fr
 
         gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
         self.v_z[:] = self.p_z / gamma_p
