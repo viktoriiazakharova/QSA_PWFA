@@ -14,7 +14,7 @@ class BaseSpecie:
         'dAr_dxi',
         'dAz_dr',
         ]
-            
+
     def init_data(self, fields):
         for fld in fields:
             setattr(self, fld, np.zeros_like(self.r))
@@ -45,7 +45,7 @@ class BaseSpecie:
         self.rmax = self.r0.max()
         self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
         self.dQ[0] = 0.125 * self.dr0[0]**2
-        
+
     def get_dAz_dr(self, source_specie):
         self.dAz_dr = methods_inline[source_specie.type]['dAz_dr'](
                 self.dAz_dr, self.r,
@@ -66,7 +66,7 @@ class BaseSpecie:
                                 source_specie.n_p,
                                 source_specie.r,
                                 source_specie.r0,
-                                source_specie.dQ)                    
+                                source_specie.dQ)
 
     def get_dPsi_dxi(self, source_specie):
         self.dPsi_dxi = methods_inline[source_specie.type]['dPsi_dxi'](
@@ -112,7 +112,7 @@ class PlasmaSpecie(BaseSpecie):
         self.Fr[:] = self.Fr_part - self.q *  (1. - self.v_z) * self.dAr_dxi
         if self.particle_boundary == 1:
             self.Fr *= ( self.r<=self.rmax )
-            
+
     def get_d2r_dxi2(self):
         self.d2r_dxi2[:] = ( self.Fr / (1. - self.v_z) \
             + self.q *  self.dPsi_dxi * self.dr_dxi ) / (1 - self.q *  self.Psi)
@@ -130,10 +130,10 @@ class PlasmaSpecie(BaseSpecie):
 
 class BunchSpecie(BaseSpecie):
 
-    fields = BaseSpecie.base_fields 
+    fields = BaseSpecie.base_fields
 
     def init_particles(self):
- 
+
         self.xi_min = self.xi_0 - self.truncate_factor * self.sigma_xi
         self.xi_max = self.xi_0 + self.truncate_factor * self.sigma_xi
         self.i_xi_min = (self.simulation.xi <= self.xi_min).sum()
@@ -296,11 +296,11 @@ class Grid(BaseSpecie):
 
     def get_Density(self, source_specie):
         if source_specie.type == 'Bunch':
-            weights = source_specie.dQ 
+            weights = source_specie.dQ
         else:
             weights = source_specie.dQ / (1 - source_specie.v_z)
         Density_loc = np.zeros_like(self.Density)
-        
+
         Density_loc = methods_inline[source_specie.type]['Density'](
                                     Density_loc, self.r0, self.dr0,
                                     source_specie.r, weights)
@@ -322,10 +322,10 @@ class Grid(BaseSpecie):
 
     def get_v_z(self, source_specie):
         if source_specie.type == 'Bunch':
-            weights = source_specie.dQ 
+            weights = source_specie.dQ
         else:
             weights = source_specie.dQ / (1 - source_specie.v_z)
-    
+
         weights_vz = weights * source_specie.v_z
         dens_temp = np.zeros_like(self.r0)
         dens_temp = methods_inline[source_specie.type]['Density'](

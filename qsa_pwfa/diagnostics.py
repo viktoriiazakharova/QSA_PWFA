@@ -6,7 +6,7 @@ from copy import deepcopy
 class FieldDiagnostics:
 
     def __init__( self, simulation, fields=['Psi', ],
-                  L_r=None, N_r=None, r_grid_user=None, 
+                  L_r=None, N_r=None, r_grid_user=None,
                   xi_step=1, xi_range=None, species_src=None ):
         """
         Available fields are:
@@ -96,7 +96,7 @@ class BunchDiagnostics:
             self.i_xi = np.arange(simulation.xi.size)[xi_select]
         else:
             self.i_xi = np.arange(simulation.xi.size)
-            
+
         self.i_xi = self.i_xi[(self.i_xi>=self.bunch.i_xi_min)*(self.i_xi<=self.bunch.i_xi_max)]
 
         self.i_xi = self.i_xi[::xi_step]
@@ -107,7 +107,7 @@ class BunchDiagnostics:
         self.Data['r'] = np.zeros((self.i_xi.size, self.bunch.r0.size))
         self.Data['xi'] =  np.zeros((self.i_xi.size, self.bunch.r0.size))
         self.Data['dQ'] = np.zeros((self.i_xi.size, self.bunch.r0.size))
-        
+
         for fld in self.fields:
             if fld == 'Delta':
                 self.Data['Delta'] = np.zeros(self.i_xi.size)
@@ -118,7 +118,7 @@ class BunchDiagnostics:
         self.outputs.append(deepcopy(self.Data))
 
     def make_record(self, i_xi):
-        
+
         i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
         if i_xi_loc.size>0:
             i_xi_loc = i_xi_loc[0]
@@ -183,7 +183,7 @@ class SpeciesDiagnostics:
     def make_record(self, i_xi):
         i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
         if i_xi_loc.size>0:
-            i_xi_loc = i_xi_loc[0]        
+            i_xi_loc = i_xi_loc[0]
             N_r = self.specie.r.size
             self.Data['r'][i_xi_loc, :N_r] = self.specie.r.copy()
             for fld in self.fields:

@@ -39,7 +39,7 @@ class Simulation:
         self.xi = L_xi / N_xi * np.arange(N_xi)
         self.dxi = self.xi[1] - self.xi[0]
 
-    def run_step(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05, 
+    def run_step(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05,
             track_convergence=False):
 
         self.i_xi = 0
@@ -50,7 +50,7 @@ class Simulation:
             self.i_conv_list = []
 
         for diag in self.diagnostics:
-            diag.make_dataset()   
+            diag.make_dataset()
 
         for i_xi in tqdm(range(self.N_xi-1)):
             self._advance_xi(iter_max=iter_max,
@@ -157,11 +157,11 @@ class Simulation:
                 i_conv_list_loc.append(i_conv)
 
             i_conv += 1
-            
+
         if self.track_convergence:
             self.err_abs_list.append(err_abs_list_loc)
             self.err_rel_list.append(err_rel_list_loc)
-            self.i_conv_list.append(i_conv_list_loc)     
+            self.i_conv_list.append(i_conv_list_loc)
 
         if self.verbose>0 and iter_max>0 and (i_conv==iter_max):
             print(f"reached max PC iterations at i_xi={self.i_xi}",
