@@ -1,169 +1,187 @@
 import numpy as np
-from .inline_methods import *
-
+from tqdm.auto import tqdm
 
 class Simulation:
 
-    def __init__(self, L_xi, N_xi, L_r, N_r, dens_func=None):
-        self.init_grids(L_xi, N_xi, L_r, N_r, dens_func)
-        self.allocate_data()
+    def __init__(self, L_xi, N_xi, verbose=1, dt = 50):
 
-    def init_grids(self, L_xi, N_xi, L_r, N_r, dens_func):
-        # iteration counter
-        self.i_xi = 0
+        self.verbose = verbose
+        self.dt = dt
+        self.external_fields = []
+        self.species = []
+        self.diagnostics = []
+        self._init_xi_grid(L_xi, N_xi)
 
+    def sort_species(self):
+        self.species_plasma = []
+        self.species_bunch = []
+        self.species_grid = []
+        for specie in self.species:
+            if specie.type == 'Bunch':
+                self.species_bunch.append(specie)
+            elif specie.type == 'Grid':
+                self.species_grid.append(specie)
+            else:
+                self.species_plasma.append(specie)
+
+    def add_external_field(self, external_field):
+        self.external_fields.append(external_field)
+
+    def add_specie(self, specie):
+        self.species.append(specie)
+        self.sort_species()
+
+    def _init_xi_grid(self, L_xi, N_xi):
         # grid range and resolutions
         self.L_xi = L_xi
         self.N_xi = N_xi
-        self.L_r = L_r
-        self.N_r = N_r
 
         self.xi = L_xi / N_xi * np.arange(N_xi)
         self.dxi = self.xi[1] - self.xi[0]
 
-        self.dr0 = L_r/N_r
-        self.r0 = self.dr0 * np.arange(1,N_r+1)
+    def run_step(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05,
+            track_convergence=False):
 
-        # rings volumes corresponding to the grid
-        self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
-        self.dV[0] = 0.5 * self.dr0**2
+        self.i_xi = 0
+        self.track_convergence = track_convergence
+        if self.track_convergence:
+            self.err_abs_list = []
+            self.err_rel_list = []
+            self.i_conv_list = []
 
-        # handle the non-uniform density
-        if dens_func is not None:
-            self.get_dPsi_dr_inline = get_dPsi_dr_inline
-            self.dV *= dens_func(self.r0 - 0.5*self.dr0)
-        else:
-            self.get_dPsi_dr_inline = get_dPsi_dr_unif_inline
+        for diag in self.diagnostics:
+            diag.make_dataset()
 
-    def allocate_data(self):
-        self.r = self.r0.copy()
-        self.r_half = self.r0.copy()
-        self.r_next = self.r0.copy()
+        for i_xi in tqdm(range(self.N_xi-1)):
+            self._advance_xi(iter_max=iter_max,
+                            rel_err_max=rel_err_max,
+                            mixing_factor=mixing_factor)
 
-        self.p_perp = np.zeros_like(self.r0)
-        self.p_perp_half = np.zeros_like(self.r0)
-        self.p_perp_next = np.zeros_like(self.r0)
+        for diag in self.diagnostics:
+            diag.save_dataset()
 
-        self.T = np.zeros_like(self.r0)
-        self.v_z = np.zeros_like(self.r0)
-        self.gamma = np.zeros_like(self.r0)
+    def run_steps(self, N_steps, iter_max=30, rel_err_max=1e-2,
+                  mixing_factor=0.05, track_convergence=False):
 
-        self.dAz_dr = np.zeros_like(self.r0)
-        self.dAz_dr_beam  = np.zeros_like(self.r0)
-        self.dPsi_dr = np.zeros_like(self.r0)
-        self.dp_perp_dxi = np.zeros_like(self.r0)
-        
-        self.dr_dxi = np.zeros_like(self.r0)
-        self.dr_dxi_prev = np.zeros_like(self.r0)
-        self.dr_dxi_half = np.zeros_like(self.r0)
-        
-        self.d2r_dxi2 = np.zeros_like(self.r0)
-        self.dAr_dxi = np.zeros_like(self.r0)
-        
+        self.track_convergence = track_convergence
+        if self.track_convergence:
+            self.err_abs_list = []
+            self.err_rel_list = []
+            self.i_conv_list = []
 
-        self.Psi = np.zeros_like(self.r0)
-        self.F = np.zeros_like(self.r0)
+        with tqdm( total=N_steps*(self.N_xi-1) ) as pbar:
 
-    def init_beam(self, n_b, R_b, ksi0, R_xi):
-        self.n_b = n_b
-        self.R_b = R_b
-        self.ksi0 = ksi0
-        self.R_xi = R_xi
+            for i_step in range(N_steps):
+                self.i_xi = 0
 
-    def gaussian_beam(self, r, ksi):
-        """
-        Gaussian beam density distribution
-        """
-        val = self.n_b * \
-            np.exp( -0.5 * (ksi-self.ksi0)**2 / self.R_xi**2 ) * \
-            np.exp( -0.5 * r**2 / self.R_b**2)
+                for diag in self.diagnostics:
+                    diag.make_dataset()
 
-        return val
+                for specie in self.species_plasma:
+                    specie.refresh_plasma()
 
-    def gaussian_integrate(self, r, ksi):
-        """
-        Gaussian beam density distribution integrated over `r`
-        """
-        val = self.n_b * \
-            np.exp( -0.5 * (ksi-self.ksi0)**2 / self.R_xi**2) * \
-            self.R_b**2 * ( 1. - np.exp( -0.5 * r**2 / self.R_b**2 ) )
+                for i_xi in range(self.N_xi-1):
+                    self._advance_xi(iter_max=iter_max,
+                                    rel_err_max=rel_err_max,
+                                    mixing_factor=mixing_factor)
+                    pbar.update(1)
 
-        return val
+                for diag in self.diagnostics:
+                    diag.save_dataset()
 
-    def get_beam_field(self, xi_i):
-        self.dAz_dr_beam = self.gaussian_integrate(self.r, xi_i)/ self.r
+    def _advance_xi(self, iter_max, rel_err_max, mixing_factor):
 
-    def add_beam_field(self):
-        self.dAz_dr += self.dAz_dr_beam       
-        
-    def get_motion_functions(self, p_perp):
-        self.T[:] = (1. + p_perp ** 2) / (1. + self.Psi) ** 2
-        self.v_z[:] = (self.T - 1.) / (self.T + 1.)
-        self.gamma[:] = 0.5 * (1. + self.Psi) * (self.T + 1.)
+        for specie in self.species:
+            specie.reinit_data(self.i_xi)
 
-    def get_dAz_dr(self):
-        self.dAz_dr = get_dAz_dr_inline(self.dAz_dr, self.r, self.dV, self.v_z)
+        for specie in self.species:
+            for specie_src in self.species_plasma:
+                specie.get_Psi(specie_src)
 
-    def get_dPsi_dr(self):
-        self.dPsi_dr = self.get_dPsi_dr_inline(self.dPsi_dr, self.r, \
-                                               self.r0, self.dV)
+        for specie in self.species_plasma:
+            specie.get_v_z()
 
-    def get_Psi(self, r_loc):
-        self.Psi = get_psi_inline(self.Psi, r_loc, self.r0, self.dV)
+        for specie in self.species:
+            for specie_src in self.species_plasma:
+                specie.get_dPsi_dr(specie_src)
+                specie.get_dPsi_dxi(specie_src)
 
-    def get_dp_perp_dxi(self):
-        self.F[:] = self.dPsi_dr + (1. - self.v_z) * self.dAz_dr
+            for specie_src in self.species:
+                specie.get_dAz_dr(specie_src)
 
-        self.dp_perp_dxi[:] = self.F / (1. - self.v_z)
+            for ext_field in self.external_fields:
+                specie.dAz_dr += ext_field.get_dAz_dr(specie.r,
+                                                      self.xi[self.i_xi])
 
-    def get_dr_dxi(self):
-        self.dr_dxi[:] = self.p_perp_next / (1. + self.Psi)
+        for specie in self.species_plasma:
+            specie.get_Fr_part()
 
-    def get_d2r_dxi2(self):
-        self.d2r_dxi2[:] = (self.dr_dxi[:] - self.dr_dxi_prev[:]) / self.dxi
-        
-    def get_dAr_dxi(self):
-        self.dAr_dxi = get_dAr_dxi_inline(self.dAr_dxi, self.r, self.dr_dxi_half, self.d2r_dxi2, self.dV)
-        
+        err_rel = 1.0
+        i_conv = 0
+        if self.track_convergence:
+            err_abs_list_loc = []
+            err_rel_list_loc = []
+            i_conv_list_loc = []
 
-    def advance_xi(self, correct_Psi=True, correct_vz=True):
+        while (err_rel>rel_err_max) and (i_conv<iter_max):
+            for specie in self.species:
+                specie.dAr_dxi[:] = 0.0
 
-        self.get_dPsi_dr()
-        self.get_Psi(self.r)
+            for specie in self.species_plasma:
+                specie.d2r_dxi2_prev[:] = specie.d2r_dxi2
 
-        self.get_motion_functions(self.p_perp)
-        self.get_dAz_dr()
-        self.get_beam_field(self.xi[self.i_xi])
-        self.add_beam_field()
+            for specie in self.species_plasma:
+                for specie_src in self.species_plasma:
+                    specie.get_dAr_dxi(specie_src)
 
-        if correct_vz:
-            self.get_dp_perp_dxi()
-            self.p_perp_half[:] = self.p_perp + 0.5 * self.dxi * self.dp_perp_dxi
-            self.get_motion_functions(self.p_perp_half)
-            self.get_dAz_dr()
-            self.add_beam_field()
+            for specie in self.species_plasma:
+                specie.get_Fr()
 
-        self.get_dp_perp_dxi()
-        self.p_perp_next[:] = self.p_perp + self.dxi * self.dp_perp_dxi
+                specie.get_d2r_dxi2()
+                specie.d2r_dxi2 = mixing_factor * specie.d2r_dxi2 + \
+                                  (1.0 - mixing_factor) * specie.d2r_dxi2_prev
 
-        if correct_Psi:
-            self.get_dr_dxi()
-            self.r_half[:] = self.r + 0.5 * self.dxi * self.dr_dxi
-            fix_crossing_axis_r(self.r_half)
-            self.get_Psi(self.r_half)
+            err_rel = 0.0
+            N_species = len(self.species_plasma)
+            for specie in self.species_plasma:
+                err_abs = np.abs(specie.d2r_dxi2 - specie.d2r_dxi2_prev).sum()
+                ref_intergal = 0.5 * (np.abs(specie.d2r_dxi2_prev).sum() \
+                                    + np.abs(specie.d2r_dxi2).sum() )
 
-        self.get_dr_dxi()
-        self.get_d2r_dxi2()
+                if ref_intergal != 0:
+                    err_rel +=  err_abs / ref_intergal / N_species
 
-        self.dr_dxi_half[:] = 0.5 * (self.dr_dxi +  self.dr_dxi_prev)
+            if self.track_convergence:
+                err_abs_list_loc.append(err_abs)
+                err_rel_list_loc.append(err_rel)
+                i_conv_list_loc.append(i_conv)
 
-        self.get_dAr_dxi()
-        self.dr_dxi_prev[:] = self.dr_dxi
+            i_conv += 1
 
-        self.r_next[:] = self.r + self.dxi * self.dr_dxi
-        fix_crossing_axis_rp(self.r_next, self.p_perp_next)
+        if self.track_convergence:
+            self.err_abs_list.append(err_abs_list_loc)
+            self.err_rel_list.append(err_rel_list_loc)
+            self.i_conv_list.append(i_conv_list_loc)
 
-        self.r[:] = self.r_next
-        self.p_perp[:] = self.p_perp_next
+        if self.verbose>0 and iter_max>0 and (i_conv==iter_max):
+            print(f"reached max PC iterations at i_xi={self.i_xi}",
+                  f"(xi={self.xi[self.i_xi]}), with an error {err_rel:g}")
+
+        if self.verbose>1 and iter_max>0:
+            print(f"reached error {err_rel:g} in {i_conv} PC iterations",
+                  f"at i_xi={self.i_xi} (xi={self.xi[self.i_xi]})")
+
+        for specie in self.species_bunch:
+            specie.dAr_dxi[:] = 0.0
+            for specie_src in self.species_plasma:
+                specie.get_dAr_dxi(specie_src)
+
+            specie.advance_motion(self.dt)
+
+        for specie in self.species_plasma:
+            specie.advance_motion(self.dxi)
+
+        for diag in self.diagnostics:
+            diag.make_record(self.i_xi)
 
         self.i_xi += 1

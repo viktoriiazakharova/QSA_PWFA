@@ -1,4 +1,4 @@
-__version__ = '0.0a'
+__version__ = '0.2'
 __doc__ = """
 qsa_pwfa
 """
