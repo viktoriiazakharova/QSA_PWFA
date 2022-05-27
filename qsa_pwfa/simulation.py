@@ -3,7 +3,7 @@ from tqdm.auto import tqdm
 
 class Simulation:
 
-    def __init__(self, L_xi, N_xi, verbose=1, dt = 50):
+    def __init__(self, L_xi, N_xi, verbose=1, dt=0.0):
 
         self.verbose = verbose
         self.dt = dt
@@ -32,15 +32,14 @@ class Simulation:
         self.sort_species()
 
     def _init_xi_grid(self, L_xi, N_xi):
-        # grid range and resolutions
         self.L_xi = L_xi
         self.N_xi = N_xi
 
         self.xi = L_xi / N_xi * np.arange(N_xi)
         self.dxi = self.xi[1] - self.xi[0]
 
-    def run_step(self, iter_max=30, rel_err_max=1e-2, mixing_factor=0.05,
-            track_convergence=False):
+    def run_step(self, iter_max=30, rel_err_max=1e-2, 
+                 mixing_factor=0.05, track_convergence=False):
 
         self.i_xi = 0
         self.track_convergence = track_convergence

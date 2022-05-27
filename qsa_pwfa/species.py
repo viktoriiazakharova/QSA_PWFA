@@ -105,6 +105,11 @@ class PlasmaSpecie(BaseSpecie):
             (1. - self.q * self.Psi) ** 2
         self.v_z[:] = (T - 1.) / (T + 1.)
 
+        if self.check_QSA:
+            self.N_QSA_violate += (self.v_z>self.vz_max_QSA).sum()
+            self.dQ[self.v_z>self.vz_max_QSA] = 0.0
+            self.v_z[self.v_z>self.vz_max_QSA] = self.vz_max_QSA
+
     def get_Fr_part(self):
         self.Fr_part[:] = -self.q * (self.dPsi_dr + (1. - self.v_z) * self.dAz_dr)
 
@@ -225,8 +230,8 @@ class BunchSpecie(BaseSpecie):
 
 class NeutralUniformPlasma(PlasmaSpecie):
 
-    def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1,
-                 particle_boundary=1, q=-1):
+    def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1.0,
+                 particle_boundary=1, q=-1, gamma_max_QSA=None):
 
         self.type = "NeutralUniformPlasma"
 
@@ -237,6 +242,13 @@ class NeutralUniformPlasma(PlasmaSpecie):
         self.init_r_grid(L_r, N_r, r_grid_user)
         self.dQ *= n_p
         self.dQ *= self.q
+
+        if gamma_max_QSA is not None:
+            self.N_QSA_violate = 0
+            self.check_QSA = True
+            self.vz_max_QSA = (1. - 1./gamma_max_QSA**2)**0.5
+        else:
+            self.check_QSA = False
 
         self.init_data(self.fields)
 
@@ -261,8 +273,8 @@ class NeutralNoneUniformPlasma(PlasmaSpecie):
 
 class GaussianBunch(BunchSpecie):
     def __init__( self, simulation, n_p, sigma_r, sigma_xi, xi_0, Nr,
-                  q=-1, gamma_b = 1e4, delta_gamma=0., eps_r=0.,
-                  truncate_factor=4 ):
+                  q=-1, gamma_b=1e4, delta_gamma=0.0, eps_r=0.0,
+                  truncate_factor=4.0 ):
 
         self.particle_boundary = 0
         self.type = "Bunch"
