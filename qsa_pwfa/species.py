@@ -94,6 +94,9 @@ class PlasmaSpecie(BaseSpecie):
         'd2r_dxi2',
         'd2r_dxi2_prev',
         ]
+    max_weight_QSA = 35.0
+    vz_max_QSA = 1. - 1./max_weight_QSA
+    Q_QSA_violate = 0
 
     fields = motion_fields + BaseSpecie.base_fields
 
@@ -105,8 +108,9 @@ class PlasmaSpecie(BaseSpecie):
             (1. - self.q * self.Psi) ** 2
         self.v_z[:] = (T - 1.) / (T + 1.)
 
-        if self.check_QSA:
-            self.N_QSA_violate += (self.v_z>self.vz_max_QSA).sum()
+    def check_QSA(self):
+        if self.do_QSA_check:
+            self.Q_QSA_violate += self.dQ[self.v_z>self.vz_max_QSA].sum()
             self.dQ[self.v_z>self.vz_max_QSA] = 0.0
             self.v_z[self.v_z>self.vz_max_QSA] = self.vz_max_QSA
 
@@ -231,24 +235,17 @@ class BunchSpecie(BaseSpecie):
 class NeutralUniformPlasma(PlasmaSpecie):
 
     def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1.0,
-                 particle_boundary=1, q=-1, max_weight_QSA=35.0):
+                 particle_boundary=1, q=-1, do_QSA_check=True):
 
         self.type = "NeutralUniformPlasma"
-
-        self.particle_boundary = particle_boundary
         self.n_p = n_p
         self.q = q
+        self.do_QSA_check = do_QSA_check
+        self.particle_boundary = particle_boundary
 
         self.init_r_grid(L_r, N_r, r_grid_user)
         self.dQ *= n_p
         self.dQ *= self.q
-
-        if max_weight_QSA is not None:
-            self.N_QSA_violate = 0
-            self.check_QSA = True
-            self.vz_max_QSA = 1. - 1./max_weight_QSA
-        else:
-            self.check_QSA = False
 
         self.init_data(self.fields)
 
@@ -256,10 +253,10 @@ class NeutralUniformPlasma(PlasmaSpecie):
 class NeutralNoneUniformPlasma(PlasmaSpecie):
 
     def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
-                 particle_boundary=0, q=-1):
+                 particle_boundary=0, q=-1, do_QSA_check=True):
 
         self.type = "NeutralNoneUniformPlasma"
-
+        self.do_QSA_check = do_QSA_check
         self.particle_boundary = particle_boundary
         self.q = q
 

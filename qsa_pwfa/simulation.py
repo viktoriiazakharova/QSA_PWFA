@@ -59,6 +59,13 @@ class Simulation:
         for diag in self.diagnostics:
             diag.save_dataset()
 
+        if self.verbose>0:
+            for i_specie, specie in enumerate(self.species_plasma):
+                if specie.do_QSA_check:
+                    fraction_lost = specie.Q_QSA_violate / specie.dQ.sum()
+                    print(\
+                f"Specie {i_specie} had {fraction_lost*100:g}% violated QSA")
+
     def run_steps(self, N_steps, iter_max=50, rel_err_max=1e-2,
                   mixing_factor=0.05, track_convergence=False):
 
@@ -99,6 +106,7 @@ class Simulation:
 
         for specie in self.species_plasma:
             specie.get_v_z()
+            specie.check_QSA()
 
         for specie in self.species:
             for specie_src in self.species_plasma:
