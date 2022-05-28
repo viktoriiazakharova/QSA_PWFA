@@ -231,7 +231,7 @@ class BunchSpecie(BaseSpecie):
 class NeutralUniformPlasma(PlasmaSpecie):
 
     def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1.0,
-                 particle_boundary=1, q=-1, gamma_max_QSA=None):
+                 particle_boundary=1, q=-1, max_weight_QSA=35.0):
 
         self.type = "NeutralUniformPlasma"
 
@@ -243,10 +243,10 @@ class NeutralUniformPlasma(PlasmaSpecie):
         self.dQ *= n_p
         self.dQ *= self.q
 
-        if gamma_max_QSA is not None:
+        if max_weight_QSA is not None:
             self.N_QSA_violate = 0
             self.check_QSA = True
-            self.vz_max_QSA = (1. - 1./gamma_max_QSA**2)**0.5
+            self.vz_max_QSA = 1. - 1./max_weight_QSA
         else:
             self.check_QSA = False
 

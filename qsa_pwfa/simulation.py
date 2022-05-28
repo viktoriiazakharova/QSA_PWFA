@@ -59,7 +59,7 @@ class Simulation:
         for diag in self.diagnostics:
             diag.save_dataset()
 
-    def run_steps(self, N_steps, iter_max=30, rel_err_max=1e-2,
+    def run_steps(self, N_steps, iter_max=50, rel_err_max=1e-2,
                   mixing_factor=0.05, track_convergence=False):
 
         self.track_convergence = track_convergence
