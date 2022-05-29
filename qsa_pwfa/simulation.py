@@ -3,14 +3,15 @@ from tqdm.auto import tqdm
 
 class Simulation:
 
-    def __init__(self, L_xi, N_xi, verbose=1, dt=0.0):
+    def __init__(self, L_xi=None, N_xi=None, 
+                 xi_grid_user=None, verbose=1, dt=0.0):
 
         self.verbose = verbose
         self.dt = dt
         self.external_fields = []
         self.species = []
         self.diagnostics = []
-        self._init_xi_grid(L_xi, N_xi)
+        self._init_xi_grid(L_xi, N_xi, xi_grid_user)
 
     def sort_species(self):
         self.species_plasma = []
@@ -31,12 +32,17 @@ class Simulation:
         self.species.append(specie)
         self.sort_species()
 
-    def _init_xi_grid(self, L_xi, N_xi):
-        self.L_xi = L_xi
-        self.N_xi = N_xi
+    def _init_xi_grid(self, L_xi, N_xi, xi_grid_user):
+        if L_xi is not None and  N_xi is not None:
+            self.L_xi = L_xi
+            self.N_xi = N_xi
+            self.xi = L_xi / N_xi * np.arange(N_xi)
+        else:
+            self.xi = xi_grid_user.copy()
+            self.L_xi = self.xi.max()
+            self.N_xi = self.xi.size
 
-        self.xi = L_xi / N_xi * np.arange(N_xi)
-        self.dxi = self.xi[1] - self.xi[0]
+        self.dxi = np.gradient(self.xi) #self.xi[1] - self.xi[0]
 
     def run_step(self, iter_max=30, rel_err_max=1e-2, 
                  mixing_factor=0.05, track_convergence=False):
@@ -74,6 +80,9 @@ class Simulation:
             self.err_abs_list = []
             self.err_rel_list = []
             self.i_conv_list = []
+            
+        for specie in self.species_plasma:
+            setattr(specie, 'dQ0', specie.dQ.copy())
 
         with tqdm( total=N_steps*(self.N_xi-1) ) as pbar:
 
@@ -186,7 +195,7 @@ class Simulation:
             specie.advance_motion(self.dt)
 
         for specie in self.species_plasma:
-            specie.advance_motion(self.dxi)
+            specie.advance_motion(self.dxi[self.i_xi])
 
         for diag in self.diagnostics:
             diag.make_record(self.i_xi)

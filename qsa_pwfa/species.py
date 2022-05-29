@@ -84,6 +84,7 @@ class BaseSpecie:
                                 source_specie.d2r_dxi2,
                                 source_specie.dQ)
 
+
 class PlasmaSpecie(BaseSpecie):
 
     motion_fields = [
@@ -94,9 +95,6 @@ class PlasmaSpecie(BaseSpecie):
         'd2r_dxi2',
         'd2r_dxi2_prev',
         ]
-    max_weight_QSA = 35.0
-    vz_max_QSA = 1. - 1./max_weight_QSA
-    Q_QSA_violate = 0
 
     fields = motion_fields + BaseSpecie.base_fields
 
@@ -134,8 +132,8 @@ class PlasmaSpecie(BaseSpecie):
 
     def refresh_plasma(self):
         self.r[:] = self.r0
+        self.dQ[:] = self.dQ0
         self.init_data(self.fields)
-
 
 class BunchSpecie(BaseSpecie):
 
@@ -149,7 +147,7 @@ class BunchSpecie(BaseSpecie):
         self.i_xi_max = (self.simulation.xi <= self.xi_max).sum()
 
         xi = self.simulation.xi[self.i_xi_min : self.i_xi_max + 1]
-        r = np.linspace(0, self.truncate_factor * self.sigma_r, self.Nr)
+        r = np.linspace(0, self.truncate_factor * self.sigma_r, self.N_r)
         dr0 = np.gradient(r)
         r += 0.5 * dr0
 
@@ -232,15 +230,15 @@ class BunchSpecie(BaseSpecie):
 
         return Delta
 
+
 class NeutralUniformPlasma(PlasmaSpecie):
 
     def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1.0,
-                 particle_boundary=1, q=-1, do_QSA_check=True):
+                 particle_boundary=1, q=-1, max_weight_QSA=35.0):
 
         self.type = "NeutralUniformPlasma"
         self.n_p = n_p
         self.q = q
-        self.do_QSA_check = do_QSA_check
         self.particle_boundary = particle_boundary
 
         self.init_r_grid(L_r, N_r, r_grid_user)
@@ -249,14 +247,18 @@ class NeutralUniformPlasma(PlasmaSpecie):
 
         self.init_data(self.fields)
 
+        if max_weight_QSA is not None:
+            self.do_QSA_check = True
+            self.vz_max_QSA = 1. - 1./max_weight_QSA
+            self.Q_QSA_violate = 0
+
 
 class NeutralNoneUniformPlasma(PlasmaSpecie):
 
     def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
-                 particle_boundary=0, q=-1, do_QSA_check=True):
+                 particle_boundary=0, q=-1, max_weight_QSA=35.0):
 
         self.type = "NeutralNoneUniformPlasma"
-        self.do_QSA_check = do_QSA_check
         self.particle_boundary = particle_boundary
         self.q = q
 
@@ -267,24 +269,34 @@ class NeutralNoneUniformPlasma(PlasmaSpecie):
 
         self.init_data(self.fields)
 
+        if max_weight_QSA is not None:
+            self.do_QSA_check = True
+            self.vz_max_QSA = 1. - 1./max_weight_QSA
+            self.Q_QSA_violate = 0
+
 
 class GaussianBunch(BunchSpecie):
-    def __init__( self, simulation, n_p, sigma_r, sigma_xi, xi_0, Nr,
-                  q=-1, gamma_b=1e4, delta_gamma=0.0, eps_r=0.0,
-                  truncate_factor=4.0 ):
+    def __init__( self, simulation, n_p, sigma_r, sigma_xi,
+                  xi_0=None, N_r=512, gamma_b=1e4, q=-1, 
+                  delta_gamma=0.0, eps_r=0.0, truncate_factor=4.0 ):
 
-        self.particle_boundary = 0
         self.type = "Bunch"
+        self.particle_boundary = 0
+        self.simulation = simulation
         self.n_p = n_p
         self.q = q
-        self.Nr = Nr
+        self.N_r = N_r
         self.sigma_r = sigma_r
-        self.xi_0 = xi_0
         self.sigma_xi = sigma_xi
+
+        if xi_0 is not None:
+            self.xi_0 = xi_0
+        else:
+            self.xi_0 = truncate_factor * sigma_xi
+
         self.gamma_b = gamma_b
         self.delta_gamma = delta_gamma
         self.eps_r = eps_r
-        self.simulation = simulation
         self.truncate_factor = truncate_factor
         self.dens_func = self.dens_func_gauss
         self.init_particles()
