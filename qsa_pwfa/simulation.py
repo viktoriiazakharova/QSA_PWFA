@@ -60,7 +60,8 @@ class Simulation:
         for i_xi in tqdm(range(self.N_xi-1)):
             self._advance_xi(iter_max=iter_max,
                             rel_err_max=rel_err_max,
-                            mixing_factor=mixing_factor)
+                            mixing_factor=mixing_factor,
+                            do_diag=True)
 
         for diag in self.diagnostics:
             diag.save_dataset()
@@ -90,7 +91,9 @@ class Simulation:
                 self.i_xi = 0
 
                 for diag in self.diagnostics:
-                    diag.make_dataset()
+                    if np.mod(i_step, diag.dt_step) == 0:
+                        diag.make_dataset()
+                        do_diag = True
 
                 for specie in self.species_plasma:
                     specie.refresh_plasma()
@@ -98,13 +101,16 @@ class Simulation:
                 for i_xi in range(self.N_xi-1):
                     self._advance_xi(iter_max=iter_max,
                                     rel_err_max=rel_err_max,
-                                    mixing_factor=mixing_factor)
+                                    mixing_factor=mixing_factor,
+                                    do_diag=do_diag )
                     pbar.update(1)
 
                 for diag in self.diagnostics:
-                    diag.save_dataset()
+                    if np.mod(i_step, diag.dt_step) == 0:
+                        diag.save_dataset()
+                        do_diag = False
 
-    def _advance_xi(self, iter_max, rel_err_max, mixing_factor):
+    def _advance_xi(self, iter_max, rel_err_max, mixing_factor, do_diag):
 
         for specie in self.species:
             specie.reinit_data(self.i_xi)
@@ -197,7 +203,8 @@ class Simulation:
         for specie in self.species_plasma:
             specie.advance_motion(self.dxi[self.i_xi])
 
-        for diag in self.diagnostics:
-            diag.make_record(self.i_xi)
+        if do_diag:
+            for diag in self.diagnostics:
+                diag.make_record(self.i_xi)
 
         self.i_xi += 1

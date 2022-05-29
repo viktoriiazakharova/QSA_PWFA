@@ -7,7 +7,8 @@ class FieldDiagnostics:
 
     def __init__( self, simulation, fields=['Psi', ],
                   L_r=None, N_r=None, r_grid_user=None,
-                  xi_step=1, xi_range=None, species_src=None ):
+                  xi_step=1, xi_range=None, dt_step=1,
+                  species_src=None ):
         """
         Available fields are:
           'Density'
@@ -25,6 +26,7 @@ class FieldDiagnostics:
 
         self.grid = Grid(L_r, N_r, r_grid_user)
         self.simulation = simulation
+        self.dt_step = dt_step
         self.fields = fields.copy()
         self.outputs = []
 
@@ -68,7 +70,7 @@ class FieldDiagnostics:
 class BunchDiagnostics:
 
     def __init__( self, simulation, bunch, fields=['Psi', ],
-                  xi_step=1, xi_range=None, species_src=None ):
+                  xi_step=1, xi_range=None, species_src=None, dt_step=1 ):
         """
         Available fields are:
           'v_z'
@@ -82,6 +84,7 @@ class BunchDiagnostics:
 
         self.bunch = bunch
         self.simulation = simulation
+        self.dt_step = dt_step
         self.fields = fields.copy()
         self.outputs = []
 
@@ -137,7 +140,7 @@ class BunchDiagnostics:
 class SpeciesDiagnostics:
 
     def __init__( self, simulation, specie, fields=['Psi', ],
-                  xi_step=1, xi_range=None, species_src=None ):
+                  xi_step=1, xi_range=None, species_src=None, dt_step=1 ):
         """
         Available fields are:
           'v_z'
@@ -151,6 +154,7 @@ class SpeciesDiagnostics:
         self.specie = specie
         self.grid = specie
         self.simulation = simulation
+        self.dt_step = dt_step
         self.fields = fields.copy()
         self.outputs = []
 
