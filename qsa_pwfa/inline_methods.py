@@ -1,7 +1,10 @@
 from numba import njit, prange
 import numpy as np
 
-@njit
+caching = True
+paralleling = True
+
+@njit(cache=caching)
 def fast_compare(x, x1):
     val = np.zeros(x.size, dtype=np.int8)
     for ix in range(val.size):
@@ -11,7 +14,7 @@ def fast_compare(x, x1):
             val[ix] = 0
     return val
 
-@njit(parallel=True)
+@njit(parallel=paralleling,cache=caching)
 def fix_crossing_axis_rv(r, vr):
     for j in prange(r.size):
         if r[j] < 0:
@@ -19,7 +22,7 @@ def fix_crossing_axis_rv(r, vr):
             vr[j] = np.abs(vr[j])
     return r, vr
 
-@njit(parallel=True)
+@njit(parallel=paralleling,cache=caching)
 def fix_crossing_axis_rvp(r, vr, pr):
     for j in prange(r.size):
         if r[j] < 0:
@@ -28,7 +31,7 @@ def fix_crossing_axis_rvp(r, vr, pr):
             pr[j] = np.abs(pr[j])
     return r, vr, pr
 
-@njit
+@njit(cache=caching)
 def get_Density_inline(Density_target, r_target, dr_target,
                        r_source, dW_source):
 
@@ -51,7 +54,7 @@ def get_Density_inline(Density_target, r_target, dr_target,
 
     return Density_target
 
-@njit(parallel=True)
+@njit(parallel=paralleling, cache=caching)
 def get_Psi_inline( Psi_target, r_target, r_source, r0_source, dQ_source ):
     r0_source_inv = 1. / r0_source
     log_r_r0_source = np.log(r_source * r0_source_inv)
@@ -67,7 +70,7 @@ def get_Psi_inline( Psi_target, r_target, r_source, r0_source, dQ_source ):
 
     return Psi_target
 
-@njit(parallel=True)
+@njit(parallel=paralleling, cache=caching)
 def get_dPsi_dr_unif_inline(dPsi_dr_target, r_target, n_p_source, r_source,
                             r0_source, dQ_source):
 
@@ -79,7 +82,7 @@ def get_dPsi_dr_unif_inline(dPsi_dr_target, r_target, n_p_source, r_source,
 
     return dPsi_dr_target
 
-@njit(parallel=True)
+@njit(parallel=paralleling, cache=caching)
 def get_dPsi_dr_inline(dPsi_dr_target, r_target, n_p_source, r_source,
                        r0_source, dQ_source):
 
@@ -91,7 +94,7 @@ def get_dPsi_dr_inline(dPsi_dr_target, r_target, n_p_source, r_source,
 
     return dPsi_dr_target
 
-@njit(parallel=True)
+@njit(parallel=paralleling, cache=caching)
 def get_dAz_dr_inline(dAz_dr_target, r_target, r_source,
                       v_z_source, dQ_source):
     
@@ -103,7 +106,7 @@ def get_dAz_dr_inline(dAz_dr_target, r_target, r_source,
 
     return dAz_dr_target
 
-@njit(parallel=True)
+@njit(parallel=paralleling, cache=caching)
 def get_dAz_dr_bunch_inline(dAz_dr_target, r_target, r_source,
                       v_z_source, dQ_source):
     
@@ -115,7 +118,7 @@ def get_dAz_dr_bunch_inline(dAz_dr_target, r_target, r_source,
 
     return dAz_dr_target
 
-@njit(parallel=True)
+@njit(parallel=paralleling, cache=caching)
 def get_dPsi_dxi_inline(dPsi_dxi_target, r_target, r_source,
                         r0_source, dr_dxi_source, dQ_source):
     
@@ -129,7 +132,7 @@ def get_dPsi_dxi_inline(dPsi_dxi_target, r_target, r_source,
 
     return dPsi_dxi_target
 
-@njit(parallel=True)
+@njit(parallel=paralleling, cache=caching)
 def get_dAr_dxi_inline(dAr_dxi_target, r_target, r_source, dr_dxi_source,
                        d2r_dxi2_source, dQ_source):
     
