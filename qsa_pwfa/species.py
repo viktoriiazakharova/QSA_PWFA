@@ -158,7 +158,6 @@ class BunchSpecie(BaseSpecie):
         self.dQ_bunch[:, 0] = 0.125 * dr0[0]**2
 
         self.dQ_bunch *= self.q * self.n_p * self.dens_func(self.r_bunch, self.xi_bunch)
-
         self.p_r_bunch = self.eps_r / self.sigma_r * np.random.randn(*self.r_bunch.shape)
         gamma_p = self.gamma_b + self.delta_gamma * np.random.randn(*self.r_bunch.shape) 
         self.p_z_bunch = (gamma_p**2 - 1. - self.p_r_bunch**2)**0.5
@@ -174,6 +173,7 @@ class BunchSpecie(BaseSpecie):
         self.p_z  = np.zeros_like(self.r)
         self.p_r  = np.zeros_like(self.r)
         self.dr_dxi = np.zeros_like(self.r)
+        self.d2r_dxi2 = 0.0
 
     def reinit_data(self, i_xi):
         if (i_xi >= self.i_xi_min) and (i_xi <= self.i_xi_max):
@@ -234,7 +234,7 @@ class BunchSpecie(BaseSpecie):
 class NeutralUniformPlasma(PlasmaSpecie):
 
     def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1.0,
-                 particle_boundary=1, q=-1, max_weight_QSA=35.0):
+                 particle_boundary=1, q=-1.0, max_weight_QSA=35.0):
 
         self.type = "NeutralUniformPlasma"
         self.n_p = n_p
@@ -256,7 +256,7 @@ class NeutralUniformPlasma(PlasmaSpecie):
 class NeutralNoneUniformPlasma(PlasmaSpecie):
 
     def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
-                 particle_boundary=0, q=-1, max_weight_QSA=35.0):
+                 particle_boundary=0, q=-1.0, max_weight_QSA=35.0):
 
         self.type = "NeutralNoneUniformPlasma"
         self.particle_boundary = particle_boundary
@@ -277,10 +277,12 @@ class NeutralNoneUniformPlasma(PlasmaSpecie):
 
 class GaussianBunch(BunchSpecie):
     def __init__( self, simulation, n_p, sigma_r, sigma_xi,
-                  xi_0=None, N_r=512, gamma_b=1e4, q=-1, 
-                  delta_gamma=0.0, eps_r=0.0, truncate_factor=4.0 ):
+                  xi_0=None, N_r=512, gamma_b=1e4, q=-1.0, 
+                  delta_gamma=0.0, eps_r=0.0, n_cycles=1,
+                  truncate_factor=4.0 ):
 
         self.type = "Bunch"
+        self.n_cycles = n_cycles
         self.particle_boundary = 0
         self.simulation = simulation
         self.n_p = n_p

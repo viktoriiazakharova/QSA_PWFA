@@ -27,6 +27,7 @@ class FieldDiagnostics:
         self.grid = Grid(L_r, N_r, r_grid_user)
         self.simulation = simulation
         self.dt_step = dt_step
+        self.do_diag = True
         self.fields = fields.copy()
         self.outputs = []
 
@@ -85,6 +86,7 @@ class BunchDiagnostics:
         self.bunch = bunch
         self.simulation = simulation
         self.dt_step = dt_step
+        self.do_diag = True
         self.fields = fields.copy()
         self.outputs = []
 
@@ -157,6 +159,7 @@ class SpeciesDiagnostics:
         self.dt_step = dt_step
         self.fields = fields.copy()
         self.outputs = []
+        self.do_diag = True
 
         if species_src is not None:
             self.species_src = species_src
