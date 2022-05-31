@@ -43,8 +43,9 @@ class BaseSpecie:
 
         self.r = self.r0.copy()
         self.rmax = self.r0.max()
-        self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
-        self.dQ[0] = 0.125 * self.dr0[0]**2
+        self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
+        self.dV[0] = 0.125 * self.dr0[0]**2
+        self.dQ = self.dV.copy()
 
     def get_dAz_dr(self, source_specie):
         self.dAz_dr = methods_inline[source_specie.type]['dAz_dr'](
@@ -156,7 +157,7 @@ class BunchSpecie(BaseSpecie):
 
         self.dQ_bunch = dr0 * (self.r_bunch - 0.5 * dr0)
         self.dQ_bunch[:, 0] = 0.125 * dr0[0]**2
-
+        self.dV = self.dQ_bunch[0, :].copy()
         self.dQ_bunch *= self.q * self.n_p * self.dens_func(self.r_bunch, self.xi_bunch)
 
         self.p_r_bunch = self.eps_r / self.sigma_r * np.random.randn(*self.r_bunch.shape)
@@ -174,6 +175,7 @@ class BunchSpecie(BaseSpecie):
         self.p_z  = np.zeros_like(self.r)
         self.p_r  = np.zeros_like(self.r)
         self.dr_dxi = np.zeros_like(self.r)
+        self.d2r_dxi2 = 0.0
 
     def reinit_data(self, i_xi):
         if (i_xi >= self.i_xi_min) and (i_xi <= self.i_xi_max):
@@ -234,7 +236,7 @@ class BunchSpecie(BaseSpecie):
 class NeutralUniformPlasma(PlasmaSpecie):
 
     def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1.0,
-                 particle_boundary=1, q=-1, max_weight_QSA=35.0):
+                 particle_boundary=1, q=-1.0, max_weight_QSA=35.0):
 
         self.type = "NeutralUniformPlasma"
         self.n_p = n_p
@@ -256,7 +258,7 @@ class NeutralUniformPlasma(PlasmaSpecie):
 class NeutralNoneUniformPlasma(PlasmaSpecie):
 
     def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
-                 particle_boundary=0, q=-1, max_weight_QSA=35.0):
+                 particle_boundary=0, q=-1.0, max_weight_QSA=35.0):
 
         self.type = "NeutralNoneUniformPlasma"
         self.particle_boundary = particle_boundary
@@ -277,10 +279,12 @@ class NeutralNoneUniformPlasma(PlasmaSpecie):
 
 class GaussianBunch(BunchSpecie):
     def __init__( self, simulation, n_p, sigma_r, sigma_xi,
-                  xi_0=None, N_r=512, gamma_b=1e4, q=-1, 
-                  delta_gamma=0.0, eps_r=0.0, truncate_factor=4.0 ):
+                  xi_0=None, N_r=512, gamma_b=1e4, q=-1.0, 
+                  delta_gamma=0.0, eps_r=0.0, n_cycles=1,
+                  truncate_factor=4.0 ):
 
         self.type = "Bunch"
+        self.n_cycles = n_cycles
         self.particle_boundary = 0
         self.simulation = simulation
         self.n_p = n_p
@@ -325,7 +329,7 @@ class Grid(BaseSpecie):
         Density_loc = methods_inline[source_specie.type]['Density'](
                                     Density_loc, self.r0, self.dr0,
                                     source_specie.r, weights)
-        Density_loc /= self.dQ
+        Density_loc /= self.dV
         self.Density += Density_loc
 
     def get_J_z(self, source_specie):
@@ -338,7 +342,7 @@ class Grid(BaseSpecie):
         J_z_loc = methods_inline[source_specie.type]['Density'](
                                     J_z_loc, self.r0, self.dr0,
                                     source_specie.r, weights)
-        J_z_loc /= self.dQ
+        J_z_loc /= self.dV
         self.J_z += J_z_loc
 
     def get_v_z(self, source_specie):
