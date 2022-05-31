@@ -42,7 +42,7 @@ class Simulation:
             self.L_xi = self.xi.max()
             self.N_xi = self.xi.size
 
-        self.dxi = np.gradient(self.xi) #self.xi[1] - self.xi[0]
+        self.dxi = np.gradient(self.xi)
 
     def _advance_xi(self, iter_max, rel_err_max, mixing_factor):
 

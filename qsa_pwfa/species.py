@@ -43,8 +43,9 @@ class BaseSpecie:
 
         self.r = self.r0.copy()
         self.rmax = self.r0.max()
-        self.dQ = self.dr0 * (self.r0 - 0.5*self.dr0)
-        self.dQ[0] = 0.125 * self.dr0[0]**2
+        self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
+        self.dV[0] = 0.125 * self.dr0[0]**2
+        self.dQ = self.dV.copy()
 
     def get_dAz_dr(self, source_specie):
         self.dAz_dr = methods_inline[source_specie.type]['dAz_dr'](
@@ -156,8 +157,9 @@ class BunchSpecie(BaseSpecie):
 
         self.dQ_bunch = dr0 * (self.r_bunch - 0.5 * dr0)
         self.dQ_bunch[:, 0] = 0.125 * dr0[0]**2
-
+        self.dV = self.dQ_bunch[0, :].copy()
         self.dQ_bunch *= self.q * self.n_p * self.dens_func(self.r_bunch, self.xi_bunch)
+
         self.p_r_bunch = self.eps_r / self.sigma_r * np.random.randn(*self.r_bunch.shape)
         gamma_p = self.gamma_b + self.delta_gamma * np.random.randn(*self.r_bunch.shape) 
         self.p_z_bunch = (gamma_p**2 - 1. - self.p_r_bunch**2)**0.5
@@ -327,7 +329,7 @@ class Grid(BaseSpecie):
         Density_loc = methods_inline[source_specie.type]['Density'](
                                     Density_loc, self.r0, self.dr0,
                                     source_specie.r, weights)
-        Density_loc /= self.dQ
+        Density_loc /= self.dV
         self.Density += Density_loc
 
     def get_J_z(self, source_specie):
@@ -340,7 +342,7 @@ class Grid(BaseSpecie):
         J_z_loc = methods_inline[source_specie.type]['Density'](
                                     J_z_loc, self.r0, self.dr0,
                                     source_specie.r, weights)
-        J_z_loc /= self.dQ
+        J_z_loc /= self.dV
         self.J_z += J_z_loc
 
     def get_v_z(self, source_specie):
