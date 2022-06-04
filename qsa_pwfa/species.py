@@ -31,21 +31,25 @@ class BaseSpecie:
 
         if self.user_grid:
             self.r0 = r_grid_user.copy()
-            self.L_r = self.r0.max()
-            self.N_r = self.r0.size
             self.dr0 = np.gradient(self.r0)
+            self.N_r = self.r0.size
+            if (self.r0[0] != 0.5 * self.dr0[0]):
+                self.r0 = self.r0 - self.r0[0] + 0.5 * self.dr0[0]
+                print('warning: origin of r_grid_user is adjusted')
+            self.L_r = self.r0.max()
         else:
             self.L_r = L_r
             self.N_r = N_r
-            self.r0 = L_r / N_r * np.arange(1, N_r+1)
+            self.r0 = L_r / N_r * np.arange(N_r)
             self.dr0 = np.gradient(self.r0)
-            self.r0 -= 0.5*self.dr0
+            self.r0 += 0.5*self.dr0
 
-        self.r = self.r0.copy()
-        self.rmax = self.r0.max()
-        self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
-        self.dV[0] = 0.125 * self.dr0[0]**2
+        self.dV = 0.5 * \
+            ((self.r0+0.5*self.dr0)**2 - (self.r0-0.5*self.dr0)**2 )
         self.dQ = self.dV.copy()
+        
+        self.r = self.r0.copy()
+        self.rmax = self.r.max()
 
     def get_dAz_dr(self, source_specie):
         self.dAz_dr = methods_inline[source_specie.type]['dAz_dr'](
@@ -148,17 +152,21 @@ class BunchSpecie(BaseSpecie):
         self.i_xi_max = (self.simulation.xi <= self.xi_max).sum()
 
         xi = self.simulation.xi[self.i_xi_min : self.i_xi_max + 1]
-        r = np.linspace(0, self.truncate_factor * self.sigma_r, self.N_r)
+        L_r = self.truncate_factor * self.sigma_r
+        
+        r = L_r / self.N_r * np.arange(self.N_r)
         dr0 = np.gradient(r)
         r += 0.5 * dr0
 
         self.r_bunch = r[None,:] * np.ones_like(xi)[:, None]
         self.xi_bunch = xi[:, None] * np.ones_like(r)[None, :]
 
-        self.dQ_bunch = dr0 * (self.r_bunch - 0.5 * dr0)
-        self.dQ_bunch[:, 0] = 0.125 * dr0[0]**2
+        self.dQ_bunch = 0.5 * \
+            ( (self.r_bunch + 0.5 * dr0)**2 \
+               - (self.r_bunch - 0.5 * dr0)**2 )    
         self.dV = self.dQ_bunch[0, :].copy()
-        self.dQ_bunch *= self.q * self.n_p * self.dens_func(self.r_bunch, self.xi_bunch)
+        self.dQ_bunch *= self.q * self.n_p * self.dens_func(\
+            self.r_bunch, self.xi_bunch)
 
         self.p_r_bunch = self.eps_r / self.sigma_r * np.random.randn(*self.r_bunch.shape)
         gamma_p = self.gamma_b + self.delta_gamma * np.random.randn(*self.r_bunch.shape) 
