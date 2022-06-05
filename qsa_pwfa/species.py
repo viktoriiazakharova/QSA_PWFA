@@ -44,8 +44,8 @@ class BaseSpecie:
             self.dr0 = np.gradient(self.r0)
             self.r0 += 0.5*self.dr0
 
-        self.dV = 0.5 * \
-            ((self.r0+0.5*self.dr0)**2 - (self.r0-0.5*self.dr0)**2 )
+        self.dV = self.dr0 * (self.r0 - 0.5*self.dr0)
+        self.dV[0] = 0.125 * self.dr0[0]**2      
         self.dQ = self.dV.copy()
         
         self.r = self.r0.copy()
@@ -161,13 +161,14 @@ class BunchSpecie(BaseSpecie):
         self.r_bunch = r[None,:] * np.ones_like(xi)[:, None]
         self.xi_bunch = xi[:, None] * np.ones_like(r)[None, :]
 
-        self.dQ_bunch = 0.5 * \
-            ( (self.r_bunch + 0.5 * dr0)**2 \
-               - (self.r_bunch - 0.5 * dr0)**2 )    
+        self.dQ_bunch = dr0 * (self.r_bunch - 0.5 * dr0)
+        self.dQ_bunch[:, 0] = 0.125 * dr0[0]**2
+    
         self.dV = self.dQ_bunch[0, :].copy()
+
         self.dQ_bunch *= self.q * self.n_p * self.dens_func(\
             self.r_bunch, self.xi_bunch)
-
+        
         self.p_r_bunch = self.eps_r / self.sigma_r * np.random.randn(*self.r_bunch.shape)
         gamma_p = self.gamma_b + self.delta_gamma * np.random.randn(*self.r_bunch.shape) 
         self.p_z_bunch = (gamma_p**2 - 1. - self.p_r_bunch**2)**0.5
