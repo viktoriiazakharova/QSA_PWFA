@@ -265,7 +265,8 @@ class NeutralUniformPlasma(PlasmaSpecie):
             self.do_QSA_check = True
             self.vz_max_QSA = 1. - 1./max_weight_QSA
             self.Q_QSA_violate = 0
-
+        else:
+            self.do_QSA_check = False
 
 class NeutralNoneUniformPlasma(PlasmaSpecie):
 
@@ -287,7 +288,8 @@ class NeutralNoneUniformPlasma(PlasmaSpecie):
             self.do_QSA_check = True
             self.vz_max_QSA = 1. - 1./max_weight_QSA
             self.Q_QSA_violate = 0
-
+        else:
+            self.do_QSA_check = False
 
 class GaussianBunch(BunchSpecie):
     def __init__( self, simulation, n_p, sigma_r, sigma_xi,
