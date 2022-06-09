@@ -8,13 +8,13 @@ from .inline_methods import methods_inline
 class BaseSpecie:
     """
     Main and base class for the particle objects.
-    
+
     Contains following methods:
-    create attributes associated with the fields 
-      as empty r-like arrays.
-    generate radial grid.
-    wrapper methods that call numba-compiled functions that
-      calculate terms for electromagnetic field.
+      init_data: creates attributes associated with the fields
+        as empty r-like arrays.
+      init_r_grid: generates the radial grid.
+      get_[field term] : wrapper methods that call numba-compiled functions that
+        calculate various [field terms] for electromagnetic field.
     """
 
     base_fields = [
@@ -108,16 +108,16 @@ class PlasmaSpecie(BaseSpecie):
     Generic class for plasma QSA particle species.
     
     Contains following methods:
-    reinitialize the electromagnetic fields.
-    calculate `v_z` of QSA particles.
-    check and suppress the particles that violate QSA.
-    calculate the force on QSA particles without 
-      account for the implicit term`dAr_dxi`.
-    calculate the full force on QSA particles.
-    calculate the radial acceleration of QSA particles.
-    advance radial coordinates and velocities of 
-      QSA particles and treat the axis crossing.
-    reset all plasma attributes to initial state.
+      reinit_data: reinitialize the electromagnetic fields.
+      get_v_z: calculate `v_z` of QSA particles.
+      check_QSA: check and suppress the particles that violate QSA.
+      get_Fr_part: calculate the force on QSA particles without 
+        account for the implicit term`dAr_dxi`.
+      get_Fr: calculate the full force on QSA particles.
+      get_d2r_dxi2: calculate the radial acceleration of QSA particles.
+      advance_motion: advance radial coordinates and velocities of 
+        QSA particles and treat the axis crossing.
+      refresh_plasma: reset all plasma attributes to initial state.
     """
 
     motion_fields = [
@@ -173,14 +173,14 @@ class BunchSpecie(BaseSpecie):
     Generic class for relativistic bunch particle species.
     
     Contains following methods:
-    initialize all bunch particles in 
-      the (xi, r) space and create the slice attributes.
-    load the slice at a given xi position.
-    advance coordinates and velocities of 
-      bunch particles in time and treat the axis crossing.
-    calculate normalized variation of the
-      longitudinal electric field over the slice and weighted 
-      with density (Delta).
+      init_particles: initialize all bunch particles in 
+        the (xi, r) space and create the slice attributes.
+      reinit_data: load the slice at a given xi position.
+      advance_motion: advance coordinates and velocities of 
+        bunch particles in time and treat the axis crossing.
+      get_Delta: calculate normalized variation of the
+        longitudinal electric field over the slice and weighted 
+        with particle charges.
     """
 
     fields = BaseSpecie.base_fields
@@ -421,8 +421,8 @@ class GaussianBunch(BunchSpecie):
             n_cycles (int, optional): Number of sub-steps to be performed for
               bunch motion over the time step. Defaults to 1.
             truncate_factor (float, optional): Factor that defines how far from
-            the bunch center the particles are created. In units of `sigma_xi` and
-            `sigma_r`. Defaults to 4.0.
+              the bunch center the particles are created. In units of `sigma_xi` and
+              `sigma_r`. Defaults to 4.0.
         """
 
         self.type = "Bunch"
