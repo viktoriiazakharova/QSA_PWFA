@@ -2,9 +2,21 @@ import numpy as np
 from tqdm.auto import tqdm
 
 class Simulation:
-
+    """
+    _summary_
+    """
     def __init__(self, L_xi=None, N_xi=None, 
                  xi_grid_user=None, verbose=1, dt=0.0):
+        """
+        _summary_
+
+        Args:
+            L_xi (_type_, optional): _description_. Defaults to None.
+            N_xi (_type_, optional): _description_. Defaults to None.
+            xi_grid_user (_type_, optional): _description_. Defaults to None.
+            verbose (int, optional): _description_. Defaults to 1.
+            dt (float, optional): _description_. Defaults to 0.0.
+        """
 
         self.verbose = verbose
         self.dt = dt
@@ -26,9 +38,21 @@ class Simulation:
                 self.species_plasma.append(specie)
 
     def add_external_field(self, external_field):
+        """
+        _summary_
+
+        Args:
+            external_field (_type_): _description_
+        """
         self.external_fields.append(external_field)
 
     def add_specie(self, specie):
+        """
+        _summary_
+
+        Args:
+            specie (_type_): _description_
+        """
         self.species.append(specie)
         self.sort_species()
 
@@ -152,6 +176,15 @@ class Simulation:
 
     def run_step(self, iter_max=30, rel_err_max=1e-2, 
                  mixing_factor=0.05, track_convergence=False):
+        """
+        _summary_
+
+        Args:
+            iter_max (int, optional): _description_. Defaults to 30.
+            rel_err_max (_type_, optional): _description_. Defaults to 1e-2.
+            mixing_factor (float, optional): _description_. Defaults to 0.05.
+            track_convergence (bool, optional): _description_. Defaults to False.
+        """
 
         self.i_xi = 0
         self.track_convergence = track_convergence
@@ -180,6 +213,16 @@ class Simulation:
 
     def run_steps(self, N_steps, iter_max=50, rel_err_max=1e-2,
                   mixing_factor=0.05, track_convergence=False):
+        """
+        _summary_
+
+        Args:
+            N_steps (_type_): _description_
+            iter_max (int, optional): _description_. Defaults to 50.
+            rel_err_max (_type_, optional): _description_. Defaults to 1e-2.
+            mixing_factor (float, optional): _description_. Defaults to 0.05.
+            track_convergence (bool, optional): _description_. Defaults to False.
+        """
 
         self.track_convergence = track_convergence
         if self.track_convergence:
