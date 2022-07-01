@@ -197,3 +197,65 @@ class SpeciesDiagnostics:
                 self.Data[fld][i_xi_loc, :N_r] = getattr(self.specie, fld)
         else:
             return
+
+
+class BunchDiagnostics2:
+
+    def __init__( self, simulation, bunch, fields=['Psi', ],
+                  xi_step=1, xi_range=None, species_src=None, dt_step=1 ):
+        """
+        Available fields are:
+          'v_z'
+          'Psi'
+          'dPsi_dxi'
+          'dPsi_dr'
+          'dAr_xi'
+          'dAz_dr'
+          'Delta'
+        """
+
+        self.bunch = bunch
+        self.simulation = simulation
+        self.dt_step = dt_step
+        self.do_diag = True
+        self.fields = fields.copy()
+        self.outputs = []
+
+        if species_src is not None:
+            self.species_src = species_src
+        else:
+            self.species_src = simulation.species
+
+        if xi_range is not None:
+            xi_select = (simulation.xi>=xi_range[0]) \
+                      * (simulation.xi<=xi_range[1])
+            self.i_xi = np.arange(simulation.xi.size)[xi_select]
+        else:
+            self.i_xi = np.arange(simulation.xi.size)
+
+        self.i_xi = self.i_xi[(self.i_xi>=self.bunch.i_xi_min)*(self.i_xi<=self.bunch.i_xi_max)]
+
+        self.i_xi = self.i_xi[::xi_step]
+        self.xi = simulation.xi[self.i_xi]
+
+    def make_dataset(self):
+        self.Data = {}
+        self.Data['r'] = []
+        self.Data['xi'] = []
+        self.Data['dQ'] = []
+
+        for fld in self.fields:
+            self.Data[fld] = []
+
+    def save_dataset(self):
+        self.outputs.append(deepcopy(self.Data))
+
+    def make_record(self, i_xi):
+
+        i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
+        if i_xi_loc.size>0:
+            self.Data['r'] .append( self.bunch.r.copy()  )
+            self.Data['xi'].append( self.bunch.xi.copy() )
+            self.Data['dQ'].append( self.bunch.dQ.copy() )
+            for fld in self.fields:
+                self.Data[fld].append( getattr(self.bunch, fld) )

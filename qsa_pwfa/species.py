@@ -171,15 +171,15 @@ class PlasmaSpecie(BaseSpecie):
 class BunchSpecie(BaseSpecie):
     """
     Generic class for relativistic bunch particle species.
-    
+
     Contains following methods:
-      init_particles: initialize all bunch particles in 
+      init_particles: initialize all bunch particles in
         the (xi, r) space and create the slice attributes.
       reinit_data: load the slice at a given xi position.
-      advance_motion: advance coordinates and velocities of 
+      advance_motion: advance coordinates and velocities of
         bunch particles in time and treat the axis crossing.
       get_Delta: calculate normalized variation of the
-        longitudinal electric field over the slice and weighted 
+        longitudinal electric field over the slice and weighted
         with particle charges.
     """
 
@@ -194,7 +194,7 @@ class BunchSpecie(BaseSpecie):
 
         xi = self.simulation.xi[self.i_xi_min : self.i_xi_max + 1]
         L_r = self.truncate_factor * self.sigma_r
-        
+
         r = L_r / self.N_r * np.arange(self.N_r)
         dr0 = L_r / self.N_r * np.ones_like(r)
         r += 0.5 * dr0
@@ -204,16 +204,16 @@ class BunchSpecie(BaseSpecie):
 
         self.dQ_bunch = dr0 * (self.r_bunch - 0.5 * dr0)
         self.dQ_bunch[:, 0] = 0.125 * dr0[0]**2
-    
+
         self.dV = self.dQ_bunch[0, :].copy()
 
         self.dQ_bunch *= self.q * self.n_p * self.dens_func(\
             self.r_bunch - 0.5 * dr0, self.xi_bunch)
-        
+
         self.p_r_bunch = self.eps_r / self.sigma_r \
             * np.random.randn(*self.r_bunch.shape)
         gamma_p = self.gamma_b + self.delta_gamma \
-            * np.random.randn(*self.r_bunch.shape) 
+            * np.random.randn(*self.r_bunch.shape)
         self.p_z_bunch = (gamma_p**2 - 1. - self.p_r_bunch**2)**0.5
 
         self.v_z_bunch = self.p_z_bunch / gamma_p
@@ -295,7 +295,7 @@ class NeutralUniformPlasma(PlasmaSpecie):
                  particle_boundary=1, q=-1.0, max_weight_QSA=35.0):
         """
         Initialize the plasma particles.
-        
+
         Args:
             L_r (float, optional): Radial size of the plasma. Is only used
               for uniform grids. Defaults to None, which assumes that 
@@ -314,7 +314,7 @@ class NeutralUniformPlasma(PlasmaSpecie):
               (still carrying the charge). Defaults to 1.
             q (float, optional): Charge of plasma moving species in units of
               elementary charge `e`. Defaults to -1.0.
-            max_weight_QSA (float, optional): Set the limit for the particle 
+            max_weight_QSA (float, optional): Set the limit for the particle
               _weigth_ allowed by QSA, and defined as `gamma / (Psi + 1)`.
               Defaults to 35.0.
         """
@@ -518,3 +518,165 @@ class Grid(BaseSpecie):
                                     self.v_z, self.r0, self.dr0,
                                     source_specie.r, weights_vz)
         self.v_z /= dens_temp
+
+
+class BunchFromArrays(BunchSpecie):
+    """
+    User class to create Gaussian bunch species.
+    """
+    def __init__( self, simulation, 
+                  x, y, xi, ux, uy, uz, charge_total, 
+                  q=-1.0, n_cycles=1 ):
+        """
+        Initialize the Gaussian bunch.
+
+        Args:
+            simulation (Simulation): Simulation object
+            n_cycles (int, optional): Number of sub-steps to be performed for
+              bunch motion over the time step. Defaults to 1.
+        """
+
+        self.type = "Bunch"
+        self.n_cycles = n_cycles
+        self.particle_boundary = 0
+        self.simulation = simulation
+        self.n_p = 1.0
+        self.q = q
+
+        # self.xi_0 = np.average(z, weights=wght)
+        # self.xi_bunch = 2 * self.xi_0 - z
+
+        self.Np = xi.size
+        self.xi_bunch = xi
+        self.xi_min, self.xi_max = self.xi_bunch.min(), self.xi_bunch.max()
+        self.i_xi_min = (self.simulation.xi <= self.xi_min).sum()
+        self.i_xi_max = (self.simulation.xi <= self.xi_max).sum()
+
+        self.x_bunch = x
+        self.y_bunch = y
+        self.ux_bunch = ux
+        self.uy_bunch = uy
+
+        self.r_bunch = np.sqrt( x*x + y*y )
+        self.p_r_bunch = (ux*x + uy*y) / self.r_bunch
+
+        self.p_z_bunch = uz
+        gamma_bunch = np.sqrt(1.0 + ux*ux + uy*uy + uz*uz)
+
+        self.v_z_bunch = self.p_z_bunch / gamma_bunch
+        self.dr_dxi_bunch = self.p_r_bunch / gamma_bunch
+
+        self.dQ_bunch = q * charge_total * np.ones_like(x) / self.Np / (2*np.pi)
+        self.init_particles()
+
+    def init_particles(self):
+        indx_sort = np.argsort(self.xi_bunch)
+        xi_sim = self.simulation.xi[(self.simulation.xi <= self.xi_max) \
+                                  * (self.simulation.xi >= self.xi_min)]
+        dxi_sim = self.simulation.dxi[(self.simulation.xi <= self.xi_max) \
+                                  * (self.simulation.xi >= self.xi_min)]
+
+        self.indicies_in_slices = {}
+        for i_xi_sim in range(len(xi_sim)):
+            self.indicies_in_slices[i_xi_sim] = []
+
+        for i_p in indx_sort:
+            xi_p = self.xi_bunch[i_p]
+            i_xi_loc = np.abs(xi_p - xi_sim).argmin()
+            self.indicies_in_slices[i_xi_loc].append(i_p)
+
+        for i_xi_sim in range(len(xi_sim)):
+            indicies_in_slice = self.indicies_in_slices[i_xi_sim]
+            self.dQ_bunch[indicies_in_slice] /= dxi_sim[i_xi_sim]
+
+        self.rmax = self.r_bunch.max()
+        self.r = self.r_bunch[self.indicies_in_slices[0]].copy()
+        self.r0 = self.r.copy()
+        self.v_z = np.ones_like(self.r)
+        self.dQ = np.zeros_like(self.r)
+        self.p_z = np.zeros_like(self.r)
+        self.p_r = np.zeros_like(self.r)
+        self.dr_dxi = np.zeros_like(self.r)
+        self.d2r_dxi2 = 0.0
+
+    def reinit_data(self, i_xi):
+        if (i_xi >= self.i_xi_min) and (i_xi < self.i_xi_max):
+            indicies_in_slice = self.indicies_in_slices[i_xi - self.i_xi_min]
+            if len(indicies_in_slice)>0:
+                self.r = self.r_bunch[indicies_in_slice]
+                self.xi = self.xi_bunch[indicies_in_slice]
+                self.dQ = self.dQ_bunch[indicies_in_slice]
+                self.v_z = self.v_z_bunch[indicies_in_slice]
+                self.p_z = self.p_z_bunch[indicies_in_slice]
+                self.p_r = self.p_r_bunch[indicies_in_slice]
+                self.dr_dxi = self.dr_dxi_bunch[indicies_in_slice]
+                self.x = self.x_bunch[indicies_in_slice]
+                self.y = self.y_bunch[indicies_in_slice]
+                self.ux = self.ux_bunch[indicies_in_slice]
+                self.uy = self.uy_bunch[indicies_in_slice]
+            else:
+                self.r = np.zeros(0)
+                self.dQ = np.zeros(0)
+                self.xi = np.zeros(0)
+                self.p_z = np.zeros(0)
+                self.p_r = np.zeros(0)
+                self.v_z = np.zeros(0)
+                self.dr_dxi = np.zeros(0)
+                self.x = np.zeros(0)
+                self.y = np.zeros(0)
+                self.ux = np.zeros(0)
+                self.uy = np.zeros(0)
+        else:
+            self.xi = np.zeros(0)
+            self.x = np.zeros(0)
+            self.y = np.zeros(0)
+            self.r = np.zeros(0)
+            self.p_z = np.zeros(0)
+            self.ux = np.zeros(0)
+            self.uy = np.zeros(0)
+            self.p_r = np.zeros(0)
+            self.v_z = np.zeros(0)
+            self.dr_dxi = np.zeros(0)
+            self.dQ = np.zeros(0)
+
+
+        self.init_data(self.fields)
+
+    def advance_motion(self, dt):
+        Ez = self.dPsi_dxi
+        Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
+        Bt = -self.dAz_dr - self.dAr_dxi
+
+        Ex =  Er * self.x/self.r
+        Ey =  Er * self.y/self.r
+        Bx = -Bt * self.y/self.r
+        By =  Bt * self.x/self.r
+
+        self.ux  += 0.5 * self.q * dt * Ex
+        self.uy  += 0.5 * self.q * dt * Ey
+        self.p_z += 0.5 * self.q * dt * Ez
+
+        gamma_inv = 1.0 / np.sqrt(1. + self.ux**2 + self.uy**2 + self.p_z**2)
+
+        vx_mid = self.ux * gamma_inv
+        vy_mid = self.uy * gamma_inv
+        vz_mid = self.p_z * gamma_inv
+
+        self.ux  += self.q * dt * ( 0.5*Ex - vz_mid*By )
+        self.uy  += self.q * dt * ( 0.5*Ey + vz_mid*Bx )
+        self.p_z += self.q * dt * ( 0.5*Ez + vx_mid*By - vy_mid*Bx )
+
+        gamma_inv = 1.0 / np.sqrt(1. + self.ux**2 + self.uy**2 + self.p_z**2)
+
+        self.x += self.ux * gamma_inv * dt
+        self.y += self.ux * gamma_inv * dt
+        self.xi += ( self.p_z*gamma_inv -1 ) * dt
+
+        self.r = np.sqrt(self.x*self.x + self.y*self.y)
+        self.p_r[:] = ( self.ux * self.x + self.uy * self.y ) / self.r
+        self.dr_dxi[:] = self.p_r * gamma_inv
+
+        self.v_z[:] = self.p_z * gamma_inv
+        self.dr_dxi[:] = self.p_r * gamma_inv
+
+        fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
