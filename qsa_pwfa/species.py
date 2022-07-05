@@ -230,6 +230,14 @@ class BunchSpecie(BaseSpecie):
         self.d2r_dxi2 = 0.0
 
     def reinit_data(self, i_xi):
+        self.r = np.zeros(0)
+        self.xi = np.zeros(0)
+        self.p_r  = np.zeros(0)
+        self.p_z = np.zeros(0)
+        self.v_z = np.zeros(0)
+        self.dQ = np.zeros(0)
+        self.dr_dxi = np.zeros(0)
+
         if (i_xi >= self.i_xi_min) and (i_xi <= self.i_xi_max):
             self.r = self.r_bunch[i_xi - self.i_xi_min]
             self.xi = self.xi_bunch[i_xi - self.i_xi_min]
@@ -238,14 +246,6 @@ class BunchSpecie(BaseSpecie):
             self.p_z = self.p_z_bunch[i_xi - self.i_xi_min]
             self.p_r = self.p_r_bunch[i_xi - self.i_xi_min]
             self.dr_dxi = self.dr_dxi_bunch[i_xi - self.i_xi_min]
-        else:
-            self.r = np.zeros(0)
-            self.dQ = np.zeros(0)
-            self.xi = np.zeros(0)
-            self.p_z = np.zeros(0)
-            self.p_r  = np.zeros(0)
-            self.v_z = np.zeros(0)
-            self.dr_dxi = np.zeros(0)
 
         self.init_data(self.fields)
 
@@ -520,10 +520,13 @@ class Grid(BaseSpecie):
         self.v_z /= dens_temp
 
 
-class BunchFromArrays(BunchSpecie):
+class BunchFromArrays(BaseSpecie):  
     """
     User class to create Gaussian bunch species.
     """
+    
+    fields = BaseSpecie.base_fields
+
     def __init__( self, simulation, 
                   x, y, xi, ux, uy, uz, charge_total, 
                   q=-1.0, n_cycles=1 ):
@@ -600,49 +603,36 @@ class BunchFromArrays(BunchSpecie):
         self.d2r_dxi2 = 0.0
 
     def reinit_data(self, i_xi):
+        self.x = np.zeros(0)
+        self.y = np.zeros(0)
+        self.xi = np.zeros(0)
+        self.ux = np.zeros(0)
+        self.uy = np.zeros(0)
+        self.p_z = np.zeros(0)
+        self.v_z = np.zeros(0)
+        self.dQ = np.zeros(0)
+        self.r = np.zeros(0)
+        self.p_r = np.zeros(0)
+        self.dr_dxi = np.zeros(0)
+
         if (i_xi >= self.i_xi_min) and (i_xi < self.i_xi_max):
             indicies_in_slice = self.indicies_in_slices[i_xi - self.i_xi_min]
             if len(indicies_in_slice)>0:
-                self.r = self.r_bunch[indicies_in_slice]
-                self.xi = self.xi_bunch[indicies_in_slice]
-                self.dQ = self.dQ_bunch[indicies_in_slice]
-                self.v_z = self.v_z_bunch[indicies_in_slice]
-                self.p_z = self.p_z_bunch[indicies_in_slice]
-                self.p_r = self.p_r_bunch[indicies_in_slice]
-                self.dr_dxi = self.dr_dxi_bunch[indicies_in_slice]
                 self.x = self.x_bunch[indicies_in_slice]
                 self.y = self.y_bunch[indicies_in_slice]
+                self.xi = self.xi_bunch[indicies_in_slice]
                 self.ux = self.ux_bunch[indicies_in_slice]
                 self.uy = self.uy_bunch[indicies_in_slice]
-            else:
-                self.r = np.zeros(0)
-                self.dQ = np.zeros(0)
-                self.xi = np.zeros(0)
-                self.p_z = np.zeros(0)
-                self.p_r = np.zeros(0)
-                self.v_z = np.zeros(0)
-                self.dr_dxi = np.zeros(0)
-                self.x = np.zeros(0)
-                self.y = np.zeros(0)
-                self.ux = np.zeros(0)
-                self.uy = np.zeros(0)
-        else:
-            self.xi = np.zeros(0)
-            self.x = np.zeros(0)
-            self.y = np.zeros(0)
-            self.r = np.zeros(0)
-            self.p_z = np.zeros(0)
-            self.ux = np.zeros(0)
-            self.uy = np.zeros(0)
-            self.p_r = np.zeros(0)
-            self.v_z = np.zeros(0)
-            self.dr_dxi = np.zeros(0)
-            self.dQ = np.zeros(0)
-
+                self.p_z = self.p_z_bunch[indicies_in_slice]
+                self.v_z = self.v_z_bunch[indicies_in_slice]
+                self.dQ = self.dQ_bunch[indicies_in_slice]
+                self.r = self.r_bunch[indicies_in_slice]
+                self.p_r = self.p_r_bunch[indicies_in_slice]
+                self.dr_dxi = self.dr_dxi_bunch[indicies_in_slice]
 
         self.init_data(self.fields)
 
-    def advance_motion(self, dt):
+    def advance_motion_new(self, dt):
         Ez = self.dPsi_dxi
         Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
         Bt = -self.dAz_dr - self.dAr_dxi
@@ -678,5 +668,34 @@ class BunchFromArrays(BunchSpecie):
 
         self.v_z[:] = self.p_z * gamma_inv
         self.dr_dxi[:] = self.p_r * gamma_inv
+
+        fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
+        
+    def advance_motion(self, dt):
+        # Ez = self.dPsi_dxi
+        # Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
+        # Bt = -self.dAz_dr - self.dAr_dxi
+
+        self.Fz = self.q * dt * (self.dPsi_dxi \
+            - self.dr_dxi * (self.dAz_dr - self.dAr_dxi) )
+        self.Fr = - self.q * dt \
+            * (self.dPsi_dr + (self.dAz_dr + self.dAr_dxi) * (1 - self.v_z) )
+
+        self.p_z += 0.5 * self.Fz
+        self.p_r += 0.5 * self.Fr
+
+        gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
+        self.v_z[:] = self.p_z / gamma_p
+        self.dr_dxi[:] = self.p_r  / gamma_p
+
+        self.xi += (self.v_z-1) * dt
+        self.r += self.dr_dxi * dt
+
+        self.p_z += 0.5 * self.Fz
+        self.p_r += 0.5 * self.Fr
+
+        gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
+        self.v_z[:] = self.p_z / gamma_p
+        self.dr_dxi[:] = self.p_r  / gamma_p
 
         fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
