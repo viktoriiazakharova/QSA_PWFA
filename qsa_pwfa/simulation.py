@@ -1,5 +1,6 @@
 import numpy as np
 from tqdm.auto import tqdm
+from copy import deepcopy as copy
 
 class Simulation:
     """
@@ -75,8 +76,14 @@ class Simulation:
         for specie in self.species:
             specie.reinit_data(self.i_xi)
 
+        self.species_bunch_active_slice = []
+        for specie in self.species_bunch:
+            self.species_bunch_active_slice.append(specie.local_slice)
+
+        self.species_active = self.species_plasma + self.species_bunch_active_slice
+
         for specie in self.species_plasma:
-            for specie_src in self.species:
+            for specie_src in self.species_active:
                 specie.get_Psi(specie_src)
 
         for specie in self.species_plasma:
@@ -84,11 +91,11 @@ class Simulation:
             specie.check_QSA()
 
         for specie in self.species_plasma:
-            for specie_src in self.species:
+            for specie_src in self.species_active:
                 specie.get_dPsi_dr(specie_src)
                 specie.get_dPsi_dxi(specie_src)
 
-            for specie_src in self.species:
+            for specie_src in self.species_active:             
                 specie.get_dAz_dr(specie_src)
 
             for ext_field in self.external_fields:
@@ -153,10 +160,10 @@ class Simulation:
             print(f"reached error {err_rel:g} in {i_conv} PC iterations",
                   f"at i_xi={self.i_xi} (xi={self.xi[self.i_xi]})")
 
-        for specie in self.species_bunch:
+        for specie in self.species_bunch_active_slice:
             for i_cycle in range(specie.n_cycles):
                 specie.init_data(specie.fields)
-                for specie_src in self.species:
+                for specie_src in self.species_active:
                     specie.get_Psi(specie_src)
                     specie.get_dPsi_dr(specie_src)
                     specie.get_dPsi_dxi(specie_src)

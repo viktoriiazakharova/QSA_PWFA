@@ -62,7 +62,10 @@ class FieldDiagnostics:
             self.grid.init_data(self.fields)
             for fld in self.fields:
                 for specie_src in self.species_src:
-                    getattr(self.grid, 'get_'+fld)(specie_src)
+                    if specie_src.type=='Bunch':
+                        getattr(self.grid, 'get_'+fld)(specie_src.local_slice)
+                    else:
+                        getattr(self.grid, 'get_'+fld)(specie_src)
 
                 self.Data[fld][i_xi_loc] = getattr(self.grid, fld)
         else:
@@ -254,8 +257,8 @@ class BunchDiagnostics2:
 
         i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
         if i_xi_loc.size>0:
-            self.Data['r'] .append( self.bunch.r.copy()  )
-            self.Data['xi'].append( self.bunch.xi.copy() )
-            self.Data['dQ'].append( self.bunch.dQ.copy() )
+            self.Data['r'] .append( self.bunch.local_slice.r.copy()  )
+            self.Data['xi'].append( self.bunch.local_slice.xi.copy() )
+            self.Data['dQ'].append( self.bunch.local_slice.dQ.copy() )
             for fld in self.fields:
-                self.Data[fld].append( getattr(self.bunch, fld) )
+                self.Data[fld].append( getattr(self.bunch.local_slice, fld) )
