@@ -162,8 +162,9 @@ class Simulation:
 
         for specie in self.species_bunch_active_slice:
             for i_cycle in range(specie.n_cycles):
-
                 specie.init_data(specie.fields)
+
+                specie.half_push_coord(self.dt/specie.n_cycles)
 
                 for specie_src in self.species_active:
                     specie.get_Psi(specie_src)

@@ -196,6 +196,9 @@ class BunchSliceRZ(BaseSpecie):
 
         self.d2r_dxi2 = 0.0
 
+    def half_push_coord(self, dt):
+        self.r += 0.5 * self.dr_dxi * dt
+
     def advance_motion(self, dt):
 
         self.Fz = self.q * dt * (self.dPsi_dxi \
@@ -211,7 +214,7 @@ class BunchSliceRZ(BaseSpecie):
         self.dr_dxi[:] = self.p_r  / gamma_p
 
         self.xi += (self.v_z-1) * dt
-        self.r += self.dr_dxi * dt
+        self.r += 0.5 * self.dr_dxi * dt
 
         self.p_z += 0.5 * self.Fz
         self.p_r += 0.5 * self.Fr
@@ -256,6 +259,11 @@ class BunchSlice3D(BaseSpecie):
 
         self.d2r_dxi2 = 0.0
 
+    def half_push_coord(self, dt):
+        self.gamma_inv = 1.0 / np.sqrt(1. + self.p_x**2 + self.p_y**2 + self.p_z**2)
+        self.x += 0.5 * dt * self.p_x * self.gamma_inv
+        self.y += 0.5 * dt * self.p_y * self.gamma_inv
+
     def advance_motion(self, dt):
         Ez = self.dPsi_dxi
         Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
@@ -266,39 +274,29 @@ class BunchSlice3D(BaseSpecie):
         Bx = -Bt * self.y/self.r
         By =  Bt * self.x/self.r
 
-        #self.Ez = Ez
-        #self.Ex = Ex
-        #self.Ey = Ey
-        #self.Bx = Ex
-        #self.By = Ey
+        p_x_next = self.p_x + self.q*dt * ( Ex - self.p_x*self.gamma_inv*By )
+        p_y_next = self.p_x + self.q*dt * ( Ey + self.p_y*self.gamma_inv*Bx )
+        
+        p_x_mid = 0.5 * (self.p_x + p_x_next)
+        p_y_mid = 0.5 * (self.p_y + p_y_next)
+        p_z_mid = self.p_z + 0.5 * dt * self.q * Ez
 
-        self.p_x += 0.5 * self.q * dt * Ex
-        self.p_y += 0.5 * self.q * dt * Ey
-        self.p_z += 0.5 * self.q * dt * Ez
+        self.gamma_inv = 1.0 / np.sqrt(1. + p_x_mid*p_x_mid + \
+            p_y_mid*p_y_mid + p_z_mid*p_z_mid)
 
-        gamma_inv = 1.0 / np.sqrt(1. + self.p_x**2 + self.p_y**2 + self.p_z**2)
+        p_z_next = self.p_z + self.q*dt * ( Ez + \
+            p_x_mid*self.gamma_inv*By - p_y_mid*self.gamma_inv*Bx )
 
-        vx_mid = self.p_x * gamma_inv
-        vy_mid = self.p_y * gamma_inv
-        vz_mid = self.p_z * gamma_inv
+        self.gamma_inv = 1.0 / np.sqrt(1. + p_x_next**2 + p_y_next**2 + p_z_next**2)
+        self.v_z[:] = self.p_z * self.gamma_inv
 
-        self.p_x += self.q * dt * ( 0.5*Ex - vz_mid*By )
-        self.p_y += self.q * dt * ( 0.5*Ey + vz_mid*Bx )
-        self.p_z += self.q * dt * ( 0.5*Ez + vx_mid*By - vy_mid*Bx )
-
-        gamma_inv = 1.0 / np.sqrt(1. + self.p_x**2 + self.p_y**2 + self.p_z**2)
-
-        self.v_z[:] = self.p_z * gamma_inv
-
-        self.x += self.p_x * gamma_inv * dt
-        self.y += self.p_y * gamma_inv * dt
+        self.x += 0.5 * self.p_x * self.gamma_inv * dt
+        self.y += 0.5 * self.p_y * self.gamma_inv * dt
         self.xi += ( self.v_z - 1 ) * dt
 
         self.r[:] = np.sqrt(self.x*self.x + self.y*self.y)
         self.p_r[:] = ( self.p_x * self.x + self.p_y * self.y ) / self.r
-        self.dr_dxi[:] = self.p_r * gamma_inv
-        fix_crossing_axis_rvpxy( self.r, self.dr_dxi, self.p_r,
-                                 self.x, self.y, self.p_x, self.p_y )
+        self.dr_dxi[:] = self.p_r * self.gamma_inv
 
 
 class BunchBase:
