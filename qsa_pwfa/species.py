@@ -1,4 +1,3 @@
-from ast import Return
 import numpy as np
 from .inline_methods import fix_crossing_axis_rv
 from .inline_methods import fix_crossing_axis_rvp
@@ -224,302 +223,6 @@ class BunchSliceRZ(BaseSpecie):
         fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
 
 
-class BunchSpecieRZ_PPC():
-
-    def init_particles(self):
-        self.xi_min = self.xi_0 - self.truncate_factor * self.sigma_xi
-        self.xi_max = self.xi_0 + self.truncate_factor * self.sigma_xi
-        self.i_xi_min = (self.simulation.xi <= self.xi_min).sum()
-        self.i_xi_max = (self.simulation.xi <= self.xi_max).sum()        
-
-        xi = self.simulation.xi[self.i_xi_min : self.i_xi_max + 1]
-        L_r = self.truncate_factor * self.sigma_r
-
-        r = L_r / self.N_r * np.arange(self.N_r)
-        dr0 = L_r / self.N_r * np.ones_like(r)
-        r += 0.5 * dr0
-
-        r_bunch = r[None,:] * np.ones_like(xi)[:, None]
-        xi_bunch = xi[:, None] * np.ones_like(r)[None, :]
-
-        dQ_bunch = dr0 * (r_bunch - 0.5 * dr0)
-        dQ_bunch[:, 0] = 0.125 * dr0[0]**2
-
-        dQ_bunch *= self.q * self.n_p * self.dens_func(\
-            r_bunch - 0.5 * dr0, xi_bunch)
-
-        p_r_bunch = self.eps_r / self.sigma_r \
-            * np.random.randn(*r_bunch.shape)
-        gamma_p = self.gamma_b + self.delta_gamma \
-            * np.random.randn(*r_bunch.shape)
-        p_z_bunch = (gamma_p**2 - 1. - p_r_bunch**2)**0.5
-
-        self.empty_slice = BunchSliceRZ( np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0) )
-        self.empty_slice.n_cycles = self.n_cycles
-        self.empty_slice.n_p = self.n_p
-        self.empty_slice.q = self.q
-        self.empty_slice.particle_boundary = self.particle_boundary
-
-        self.bunch_slices = {}
-        for i_xi in range(r_bunch.shape[0]):
-            self.bunch_slices[i_xi] = BunchSliceRZ( r_bunch[i_xi],
-                                                    xi_bunch[i_xi],
-                                                    p_r_bunch[i_xi],
-                                                    p_z_bunch[i_xi],
-                                                    dQ_bunch[i_xi] )
-
-            self.bunch_slices[i_xi].n_cycles = self.n_cycles
-            self.bunch_slices[i_xi].n_p = self.n_p
-            self.bunch_slices[i_xi].q = self.q
-            self.bunch_slices[i_xi].particle_boundary = self.particle_boundary
-
-    def reinit_data(self, i_xi):
-        if (i_xi >= self.i_xi_min) and (i_xi <= self.i_xi_max):
-            self.local_slice = self.bunch_slices[i_xi - self.i_xi_min]
-        else:
-            self.local_slice = self.empty_slice
-
-        self.local_slice.init_data(self.local_slice.fields)
-
-class GaussianBunchRZ_PPC(BunchSpecieRZ_PPC):
-    """
-    User class to create Gaussian bunch species.
-    """
-    def __init__( self, simulation, n_p, sigma_r, sigma_xi,
-                  xi_0=None, N_r=512, gamma_b=1e4, q=-1.0, 
-                  delta_gamma=0.0, eps_r=0.0, n_cycles=1,
-                  truncate_factor=4.0 ):
-        """
-        Initialize the Gaussian bunch.
-
-        Args:
-            simulation (Simulation): Simulation object
-            n_p (float): Maximum charge density in units of reference 
-              plasma density.
-            sigma_r (float): radial RSM size of the bunch.
-            sigma_xi (float): longitudinal RSM size of the bunch
-            xi_0 (float, optional): Initial position of the bunch. If None,
-              the beam is set as driver at `xi = truncate_factor * sigma_xi`.
-              Defaults to None.
-            N_r (int, optional): Number of particles along radial axis.
-              Defaults to 512.
-            gamma_b (float, optional): Mean Lorentz factor of the bunch.
-              Defaults to 10 000.
-            q (float, optional): Charge of bunch particle species in units of
-              elementary charge `e`. Defaults to -1.0.
-            delta_gamma (float, optional): Relative RMS spread of Lorentz factor
-              in the bunch. Defaults to 0.0.
-            eps_r (float, optional): Normalized emittance of the bunch.
-              Defaults to 0.0.
-            n_cycles (int, optional): Number of sub-steps to be performed for
-              bunch motion over the time step. Defaults to 1.
-            truncate_factor (float, optional): Factor that defines how far from
-              the bunch center the particles are created. In units of `sigma_xi` and
-              `sigma_r`. Defaults to 4.0.
-        """
-
-        self.type = "Bunch"
-        self.n_cycles = n_cycles
-        self.particle_boundary = 0
-        self.simulation = simulation
-        self.n_p = n_p
-        self.q = q
-        self.N_r = N_r
-        self.sigma_r = sigma_r
-        self.sigma_xi = sigma_xi
-
-        if xi_0 is not None:
-            self.xi_0 = xi_0
-        else:
-            self.xi_0 = truncate_factor * sigma_xi
-
-        self.gamma_b = gamma_b
-        self.delta_gamma = delta_gamma
-        self.eps_r = eps_r
-        self.truncate_factor = truncate_factor
-        self.dens_func = self.dens_func_gauss
-        self.init_particles()
-
-    def dens_func_gauss(self, r_bunch, xi_bunch):
-        val = np.exp( - 0.5 * r_bunch**2 / self.sigma_r**2 \
-                      - 0.5 * (xi_bunch - self.xi_0)**2 / self.sigma_xi**2 )
-        return val
-
-
-class NeutralUniformPlasma(PlasmaSpecie):
-    """
-    User class to create the neutral uniform plasma species.
-    """
-
-    def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1.0,
-                 particle_boundary=1, q=-1.0, max_weight_QSA=35.0):
-        """
-        Initialize the plasma particles.
-
-        Args:
-            L_r (float, optional): Radial size of the plasma. Is only used
-              for uniform grids. Defaults to None, which assumes that 
-              `r_grid_user` is used instead.
-            N_r (integer, optional): Number of particles that presents the
-              size of the radial grid. Is only used for uniform grids. 
-              Defaults to None, which assumes that `r_grid_user` is used 
-              instead.
-            r_grid_user (float ndarray, optional): Radial grid that presents 
-              the plasma particles. Defaults to None, which assumes that 
-              `L_r` and `N_r` are used instead.
-            n_p (float, optional): Plasma density in the units of reference
-              plasma density. Defaults to 1.0.
-            particle_boundary (int, optional): If set to 1, the particles that
-              cross initial plasma radius do not experience the radial force
-              (still carrying the charge). Defaults to 1.
-            q (float, optional): Charge of plasma moving species in units of
-              elementary charge `e`. Defaults to -1.0.
-            max_weight_QSA (float, optional): Set the limit for the particle
-              _weigth_ allowed by QSA, and defined as `gamma / (Psi + 1)`.
-              Defaults to 35.0.
-        """
-
-        self.type = "NeutralUniformPlasma"
-        self.n_p = n_p
-        self.q = q
-        self.particle_boundary = particle_boundary
-
-        self.init_r_grid(L_r, N_r, r_grid_user)
-        self.dQ *= n_p
-        self.dQ *= self.q
-
-        self.init_data(self.fields)
-
-        if max_weight_QSA is not None:
-            self.do_QSA_check = True
-            self.vz_max_QSA = 1. - 1./max_weight_QSA
-            self.Q_QSA_violate = 0
-        else:
-            self.do_QSA_check = False
-
-class NeutralNoneUniformPlasma(PlasmaSpecie):
-    """
-    User class to create the neutral non-uniform plasma species.
-    """
-
-    def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
-                 particle_boundary=0, q=-1.0, max_weight_QSA=35.0):
-        """
-        Initialize the plasma particles.
-
-        Args:
-            dens_func (function): Function of radial coordinate that defines
-              plasma density profile
-            L_r (float, optional): Radial size of the plasma. Is only used
-              for uniform grids. Defaults to None, which assumes that 
-              `r_grid_user` is used instead.
-            N_r (integer, optional): Number of particles that presents the
-              size of the radial grid. Is only used for uniform grids. 
-              Defaults to None, which assumes that `r_grid_user` is used 
-              instead.
-            r_grid_user (float ndarray, optional): Radial grid that presents 
-              the plasma particles. Defaults to None, which assumes that 
-              `L_r` and `N_r` are used instead.
-            particle_boundary (int, optional): If set to 1, the particles that
-              cross initial plasma radius do not experience the radial force
-              (still carrying the charge). Defaults to 1.
-            q (float, optional): Charge of plasma moving species in units of
-              elementary charge `e`. Defaults to -1.0.
-            max_weight_QSA (float, optional): Set the limit for the particle 
-              _weigth_ allowed by QSA, and defined as `gamma / (Psi + 1)`.
-              Defaults to 35.0.
-        """
-
-        self.type = "NeutralNoneUniformPlasma"
-        self.particle_boundary = particle_boundary
-        self.q = q
-
-        self.init_r_grid(L_r, N_r, r_grid_user)
-        self.dQ *= dens_func(self.r0)
-        self.dQ *= self.q
-        self.n_p = dens_func(self.r0).max()
-
-        self.init_data(self.fields)
-
-        if max_weight_QSA is not None:
-            self.do_QSA_check = True
-            self.vz_max_QSA = 1. - 1./max_weight_QSA
-            self.Q_QSA_violate = 0
-        else:
-            self.do_QSA_check = False
-
-
-class Grid(BaseSpecie):
-    """
-    Specific class of a Grid used by FieldDiagnostics.
-    """
-
-    def __init__(self, L_r=None, N_r=None, r_grid_user=None):
-        """_summary_
-
-        Args:
-            L_r (float, optional): Radial size of the grid. Is only used
-              for uniform grids. Defaults to None, which assumes that 
-              `r_grid_user` is used instead.
-            N_r (integer, optional): Size of the radial grid. 
-              Is only used for uniform grids. Defaults to None, which assumes
-              that `r_grid_user` is used instead.
-            r_grid_user (float ndarray, optional): Radial grid. Defaults 
-              to None, which assumes that `L_r` and `N_r` are used instead.
-        """
-
-        self.particle_boundary = 0
-        self.type = "Grid"
-        self.init_r_grid(L_r, N_r, r_grid_user)
-
-    def get_Density(self, source_specie):
-        if source_specie.type == 'Bunch':
-            weights = source_specie.dQ
-        else:
-            weights = source_specie.dQ / (1 - source_specie.v_z)
-        Density_loc = np.zeros_like(self.Density)
-
-        Density_loc = methods_inline[source_specie.type]['Density'](
-                                    Density_loc, self.r0, self.dr0,
-                                    source_specie.r, weights)
-        Density_loc /= self.dV
-        self.Density += Density_loc
-
-    def get_J_z(self, source_specie):
-        if source_specie.type == 'Bunch':
-            weights = source_specie.dQ * source_specie.v_z
-        else:
-            weights = source_specie.dQ * source_specie.v_z \
-                    / (1 - source_specie.v_z)
-        J_z_loc =  np.zeros_like(self.J_z)
-        J_z_loc = methods_inline[source_specie.type]['Density'](
-                                    J_z_loc, self.r0, self.dr0,
-                                    source_specie.r, weights)
-        J_z_loc /= self.dV
-        self.J_z += J_z_loc
-
-    def get_v_z(self, source_specie):
-        if source_specie.type == 'Bunch':
-            weights = source_specie.dQ
-        else:
-            weights = source_specie.dQ / (1 - source_specie.v_z)
-
-        weights_vz = weights * source_specie.v_z
-        dens_temp = np.zeros_like(self.r0)
-        dens_temp = methods_inline[source_specie.type]['Density'](
-                                    dens_temp, self.r0, self.dr0,
-                                    source_specie.r, weights)
-
-        self.v_z = methods_inline[source_specie.type]['Density'](
-                                    self.v_z, self.r0, self.dr0,
-                                    source_specie.r, weights_vz)
-        self.v_z /= dens_temp
-
-
 class BunchSlice3D(BaseSpecie):
 
     def __init__(self, x, y, xi, p_x, p_y, p_z, dQ):
@@ -597,12 +300,321 @@ class BunchSlice3D(BaseSpecie):
         fix_crossing_axis_rvpxy( self.r, self.dr_dxi, self.p_r,
                                  self.x, self.y, self.p_x, self.p_y )
 
-class BunchFromArrays(BaseSpecie):
+
+class BunchBase:
+    def reinit_data(self, i_xi):
+        if (i_xi >= self.i_xi_min) and (i_xi <= self.i_xi_max):
+            self.local_slice = self.bunch_slices[i_xi - self.i_xi_min]
+        else:
+            self.local_slice = self.empty_slice
+
+        self.local_slice.init_data(self.local_slice.fields)
+
+
+class BunchSpecie_PPC(BunchBase):
+
+    def init_particles(self):
+        self.xi_min = self.xi_0 - self.truncate_factor * self.sigma_xi
+        self.xi_max = self.xi_0 + self.truncate_factor * self.sigma_xi
+        self.i_xi_min = (self.simulation.xi <= self.xi_min).sum()
+        self.i_xi_max = (self.simulation.xi <= self.xi_max).sum()
+
+        xi = self.simulation.xi[self.i_xi_min : self.i_xi_max + 1]
+        L_r = self.truncate_factor * self.sigma_r
+
+        r = L_r / self.N_r * np.arange(self.N_r)
+        dr0 = L_r / self.N_r * np.ones_like(r)
+        r += 0.5 * dr0
+
+        r_bunch = r[None,:] * np.ones_like(xi)[:, None]
+        xi_bunch = xi[:, None] * np.ones_like(r)[None, :]
+
+        dQ_bunch = dr0 * (r_bunch - 0.5 * dr0)
+        dQ_bunch[:, 0] = 0.125 * dr0[0]**2
+
+        dQ_bunch *= self.q * self.n_p * self.dens_func(\
+            r_bunch - 0.5 * dr0, xi_bunch)
+
+        p_r_bunch = self.eps_r / self.sigma_r \
+            * np.random.randn(*r_bunch.shape)
+        gamma_p = self.gamma_b + self.delta_gamma \
+            * np.random.randn(*r_bunch.shape)
+        p_z_bunch = (gamma_p**2 - 1. - p_r_bunch**2)**0.5
+
+        self.Np = r_bunch.size
+
+        self.empty_slice = BunchSliceRZ( np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0) )
+        self.empty_slice.n_cycles = self.n_cycles
+        self.empty_slice.n_p = self.n_p
+        self.empty_slice.q = self.q
+        self.empty_slice.particle_boundary = self.particle_boundary
+
+        self.bunch_slices = {}
+        for i_xi in range(r_bunch.shape[0]):
+            self.bunch_slices[i_xi] = BunchSliceRZ( r_bunch[i_xi],
+                                                    xi_bunch[i_xi],
+                                                    p_r_bunch[i_xi],
+                                                    p_z_bunch[i_xi],
+                                                    dQ_bunch[i_xi] )
+
+            self.bunch_slices[i_xi].n_cycles = self.n_cycles
+            self.bunch_slices[i_xi].n_p = self.n_p
+            self.bunch_slices[i_xi].q = self.q
+            self.bunch_slices[i_xi].particle_boundary = self.particle_boundary
+
+
+class Grid(BaseSpecie):
+    """
+    Specific class of a Grid used by FieldDiagnostics.
+    """
+
+    def __init__(self, L_r=None, N_r=None, r_grid_user=None):
+        """_summary_
+
+        Args:
+            L_r (float, optional): Radial size of the grid. Is only used
+              for uniform grids. Defaults to None, which assumes that 
+              `r_grid_user` is used instead.
+            N_r (integer, optional): Size of the radial grid. 
+              Is only used for uniform grids. Defaults to None, which assumes
+              that `r_grid_user` is used instead.
+            r_grid_user (float ndarray, optional): Radial grid. Defaults 
+              to None, which assumes that `L_r` and `N_r` are used instead.
+        """
+
+        self.particle_boundary = 0
+        self.type = "Grid"
+        self.init_r_grid(L_r, N_r, r_grid_user)
+
+    def get_Density(self, source_specie):
+        if source_specie.type == 'Bunch':
+            weights = source_specie.dQ
+        else:
+            weights = source_specie.dQ / (1 - source_specie.v_z)
+        Density_loc = np.zeros_like(self.Density)
+
+        Density_loc = methods_inline[source_specie.type]['Density'](
+                                    Density_loc, self.r0, self.dr0,
+                                    source_specie.r, weights)
+        Density_loc /= self.dV
+        self.Density += Density_loc
+
+    def get_J_z(self, source_specie):
+        if source_specie.type == 'Bunch':
+            weights = source_specie.dQ * source_specie.v_z
+        else:
+            weights = source_specie.dQ * source_specie.v_z \
+                    / (1 - source_specie.v_z)
+        J_z_loc =  np.zeros_like(self.J_z)
+        J_z_loc = methods_inline[source_specie.type]['Density'](
+                                    J_z_loc, self.r0, self.dr0,
+                                    source_specie.r, weights)
+        J_z_loc /= self.dV
+        self.J_z += J_z_loc
+
+    def get_v_z(self, source_specie):
+        if source_specie.type == 'Bunch':
+            weights = source_specie.dQ
+        else:
+            weights = source_specie.dQ / (1 - source_specie.v_z)
+
+        weights_vz = weights * source_specie.v_z
+        dens_temp = np.zeros_like(self.r0)
+        dens_temp = methods_inline[source_specie.type]['Density'](
+                                    dens_temp, self.r0, self.dr0,
+                                    source_specie.r, weights)
+
+        self.v_z = methods_inline[source_specie.type]['Density'](
+                                    self.v_z, self.r0, self.dr0,
+                                    source_specie.r, weights_vz)
+        self.v_z /= dens_temp
+
+#####################################################################
+#################### USER CLASSES FOR PLASMA ########################
+#####################################################################
+
+
+class NeutralUniformPlasma(PlasmaSpecie):
+    """
+    User class to create the neutral uniform plasma species.
+    """
+
+    def __init__(self, L_r=None, N_r=None, r_grid_user=None, n_p=1.0,
+                 particle_boundary=1, q=-1.0, max_weight_QSA=35.0):
+        """
+        Initialize the plasma particles.
+
+        Args:
+            L_r (float, optional): Radial size of the plasma. Is only used
+              for uniform grids. Defaults to None, which assumes that 
+              `r_grid_user` is used instead.
+            N_r (integer, optional): Number of particles that presents the
+              size of the radial grid. Is only used for uniform grids. 
+              Defaults to None, which assumes that `r_grid_user` is used 
+              instead.
+            r_grid_user (float ndarray, optional): Radial grid that presents 
+              the plasma particles. Defaults to None, which assumes that 
+              `L_r` and `N_r` are used instead.
+            n_p (float, optional): Plasma density in the units of reference
+              plasma density. Defaults to 1.0.
+            particle_boundary (int, optional): If set to 1, the particles that
+              cross initial plasma radius do not experience the radial force
+              (still carrying the charge). Defaults to 1.
+            q (float, optional): Charge of plasma moving species in units of
+              elementary charge `e`. Defaults to -1.0.
+            max_weight_QSA (float, optional): Set the limit for the particle
+              _weigth_ allowed by QSA, and defined as `gamma / (Psi + 1)`.
+              Defaults to 35.0.
+        """
+
+        self.type = "NeutralUniformPlasma"
+        self.n_p = n_p
+        self.q = q
+        self.particle_boundary = particle_boundary
+
+        self.init_r_grid(L_r, N_r, r_grid_user)
+        self.dQ *= n_p
+        self.dQ *= self.q
+
+        self.init_data(self.fields)
+
+        if max_weight_QSA is not None:
+            self.do_QSA_check = True
+            self.vz_max_QSA = 1. - 1./max_weight_QSA
+            self.Q_QSA_violate = 0
+        else:
+            self.do_QSA_check = False
+
+
+class NeutralNoneUniformPlasma(PlasmaSpecie):
+    """
+    User class to create the neutral non-uniform plasma species.
+    """
+
+    def __init__(self, dens_func, L_r=None, N_r=None, r_grid_user=None,
+                 particle_boundary=0, q=-1.0, max_weight_QSA=35.0):
+        """
+        Initialize the plasma particles.
+
+        Args:
+            dens_func (function): Function of radial coordinate that defines
+              plasma density profile
+            L_r (float, optional): Radial size of the plasma. Is only used
+              for uniform grids. Defaults to None, which assumes that 
+              `r_grid_user` is used instead.
+            N_r (integer, optional): Number of particles that presents the
+              size of the radial grid. Is only used for uniform grids. 
+              Defaults to None, which assumes that `r_grid_user` is used 
+              instead.
+            r_grid_user (float ndarray, optional): Radial grid that presents 
+              the plasma particles. Defaults to None, which assumes that 
+              `L_r` and `N_r` are used instead.
+            particle_boundary (int, optional): If set to 1, the particles that
+              cross initial plasma radius do not experience the radial force
+              (still carrying the charge). Defaults to 1.
+            q (float, optional): Charge of plasma moving species in units of
+              elementary charge `e`. Defaults to -1.0.
+            max_weight_QSA (float, optional): Set the limit for the particle 
+              _weigth_ allowed by QSA, and defined as `gamma / (Psi + 1)`.
+              Defaults to 35.0.
+        """
+
+        self.type = "NeutralNoneUniformPlasma"
+        self.particle_boundary = particle_boundary
+        self.q = q
+
+        self.init_r_grid(L_r, N_r, r_grid_user)
+        self.dQ *= dens_func(self.r0)
+        self.dQ *= self.q
+        self.n_p = dens_func(self.r0).max()
+
+        self.init_data(self.fields)
+
+        if max_weight_QSA is not None:
+            self.do_QSA_check = True
+            self.vz_max_QSA = 1. - 1./max_weight_QSA
+            self.Q_QSA_violate = 0
+        else:
+            self.do_QSA_check = False
+
+#####################################################################
+##################### USER CLASSES FOR BUNCH ########################
+#####################################################################
+
+
+class GaussianBunch_PPC(BunchSpecie_PPC):
     """
     User class to create Gaussian bunch species.
     """
+    def __init__( self, simulation, n_p, sigma_r, sigma_xi,
+                  xi_0=None, N_r=512, gamma_b=1e4, q=-1.0, 
+                  delta_gamma=0.0, eps_r=0.0, n_cycles=1,
+                  truncate_factor=4.0 ):
+        """
+        Initialize the Gaussian bunch.
 
-    fields = BaseSpecie.base_fields
+        Args:
+            simulation (Simulation): Simulation object
+            n_p (float): Maximum charge density in units of reference 
+              plasma density.
+            sigma_r (float): radial RSM size of the bunch.
+            sigma_xi (float): longitudinal RSM size of the bunch
+            xi_0 (float, optional): Initial position of the bunch. If None,
+              the beam is set as driver at `xi = truncate_factor * sigma_xi`.
+              Defaults to None.
+            N_r (int, optional): Number of particles along radial axis.
+              Defaults to 512.
+            gamma_b (float, optional): Mean Lorentz factor of the bunch.
+              Defaults to 10 000.
+            q (float, optional): Charge of bunch particle species in units of
+              elementary charge `e`. Defaults to -1.0.
+            delta_gamma (float, optional): Relative RMS spread of Lorentz factor
+              in the bunch. Defaults to 0.0.
+            eps_r (float, optional): Normalized emittance of the bunch.
+              Defaults to 0.0.
+            n_cycles (int, optional): Number of sub-steps to be performed for
+              bunch motion over the time step. Defaults to 1.
+            truncate_factor (float, optional): Factor that defines how far from
+              the bunch center the particles are created. In units of `sigma_xi` and
+              `sigma_r`. Defaults to 4.0.
+        """
+
+        self.type = "Bunch"
+        self.n_cycles = n_cycles
+        self.particle_boundary = 0
+        self.simulation = simulation
+        self.n_p = n_p
+        self.q = q
+        self.N_r = N_r
+        self.sigma_r = sigma_r
+        self.sigma_xi = sigma_xi
+
+        if xi_0 is not None:
+            self.xi_0 = xi_0
+        else:
+            self.xi_0 = truncate_factor * sigma_xi
+
+        self.gamma_b = gamma_b
+        self.delta_gamma = delta_gamma
+        self.eps_r = eps_r
+        self.truncate_factor = truncate_factor
+        self.dens_func = self.dens_func_gauss
+        self.init_particles()
+
+    def dens_func_gauss(self, r_bunch, xi_bunch):
+        val = np.exp( - 0.5 * r_bunch**2 / self.sigma_r**2 \
+                      - 0.5 * (xi_bunch - self.xi_0)**2 / self.sigma_xi**2 )
+        return val
+
+
+class BunchFromArrays(BunchBase):
+    """
+    User class to create Gaussian bunch species.
+    """
 
     def __init__( self, simulation,
                   x, y, xi, p_x, p_y, p_z, charge_total,
@@ -630,11 +642,21 @@ class BunchFromArrays(BaseSpecie):
 
         dQ = q * charge_total * np.ones_like(x) / self.Np / (2*np.pi)
 
+        self.empty_slice = BunchSlice3D( np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0) )
+        self.empty_slice.n_cycles = self.n_cycles
+        self.empty_slice.n_p = self.n_p
+        self.empty_slice.q = self.q
+        self.empty_slice.particle_boundary = self.particle_boundary
+
         indx_sort = np.argsort(xi)
-        xi_sim = self.simulation.xi[(self.simulation.xi <= self.xi_max) \
-                                  * (self.simulation.xi >= self.xi_min)]
-        dxi_sim = self.simulation.dxi[(self.simulation.xi <= self.xi_max) \
-                                  * (self.simulation.xi >= self.xi_min)]
+        xi_sim = self.simulation.xi[self.i_xi_min:self.i_xi_max+1]
+        dxi_sim = self.simulation.dxi[self.i_xi_min:self.i_xi_max+1]
 
         indicies_in_slices = {}
         for i_xi_sim in range(len(xi_sim)):
@@ -664,23 +686,3 @@ class BunchFromArrays(BaseSpecie):
             self.bunch_slices[i_xi].n_p = self.n_p
             self.bunch_slices[i_xi].q = self.q
             self.bunch_slices[i_xi].particle_boundary = self.particle_boundary
-
-        self.empty_slice = BunchSlice3D( np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0) )
-        self.empty_slice.n_cycles = self.n_cycles
-        self.empty_slice.n_p = self.n_p
-        self.empty_slice.q = self.q
-        self.empty_slice.particle_boundary = self.particle_boundary
-
-    def reinit_data(self, i_xi):
-        if (i_xi >= self.i_xi_min) and (i_xi < self.i_xi_max):
-            self.local_slice = self.bunch_slices[i_xi - self.i_xi_min]
-        else:
-            self.local_slice = self.empty_slice
-
-        self.local_slice.init_data(self.local_slice.fields)
