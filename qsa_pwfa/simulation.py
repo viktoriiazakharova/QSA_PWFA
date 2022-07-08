@@ -162,13 +162,19 @@ class Simulation:
 
         for specie in self.species_bunch_active_slice:
             for i_cycle in range(specie.n_cycles):
+
                 specie.init_data(specie.fields)
+
                 for specie_src in self.species_active:
                     specie.get_Psi(specie_src)
                     specie.get_dPsi_dr(specie_src)
                     specie.get_dPsi_dxi(specie_src)
                     specie.get_dAz_dr(specie_src)
                     specie.get_dAr_dxi(specie_src)
+
+                for ext_field in self.external_fields:
+                    specie.dAz_dr += ext_field.get_dAz_dr(
+                        specie.r, self.xi[self.i_xi])
 
                 specie.advance_motion(self.dt/specie.n_cycles)
 
