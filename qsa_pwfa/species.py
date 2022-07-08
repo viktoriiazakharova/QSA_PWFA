@@ -260,7 +260,6 @@ class BunchSlice3D(BaseSpecie):
         self.d2r_dxi2 = 0.0
 
     def half_push_coord(self, dt):
-        self.gamma_inv = 1.0 / np.sqrt(1. + self.p_x**2 + self.p_y**2 + self.p_z**2)
         self.x += 0.5 * dt * self.p_x * self.gamma_inv
         self.y += 0.5 * dt * self.p_y * self.gamma_inv
 
