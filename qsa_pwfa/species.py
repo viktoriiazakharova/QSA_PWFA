@@ -288,12 +288,15 @@ class BunchSlice3D(BaseSpecie):
             p_x_mid*self.gamma_inv*By - p_y_mid*self.gamma_inv*Bx )
 
         self.gamma_inv = 1.0 / np.sqrt(1. + p_x_next**2 + p_y_next**2 + p_z_next**2)
-        self.v_z[:] = self.p_z * self.gamma_inv
+        self.v_z[:] = p_z_next * self.gamma_inv
 
-        self.x += 0.5 * self.p_x * self.gamma_inv * dt
-        self.y += 0.5 * self.p_y * self.gamma_inv * dt
+        self.x += 0.5 * p_x_next * self.gamma_inv * dt
+        self.y += 0.5 * p_y_next * self.gamma_inv * dt
         self.xi += ( self.v_z - 1 ) * dt
 
+        self.p_x[:] = p_x_next
+        self.p_y[:] = p_y_next
+        self.p_z[:] = p_z_next
         self.r[:] = np.sqrt(self.x*self.x + self.y*self.y)
         self.p_r[:] = ( self.p_x * self.x + self.p_y * self.y ) / self.r
         self.dr_dxi[:] = self.p_r * self.gamma_inv
