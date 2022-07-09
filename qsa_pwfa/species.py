@@ -275,7 +275,7 @@ class BunchSlice3D(BaseSpecie):
         By =  Bt * self.x/self.r
 
         p_x_next = self.p_x + self.q*dt * ( Ex - self.p_z*self.gamma_inv*By )
-        p_y_next = self.p_x + self.q*dt * ( Ey + self.p_z*self.gamma_inv*Bx )
+        p_y_next = self.p_y + self.q*dt * ( Ey + self.p_z*self.gamma_inv*Bx )
         
         p_x_mid = 0.5 * (self.p_x + p_x_next)
         p_y_mid = 0.5 * (self.p_y + p_y_next)
