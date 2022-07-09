@@ -247,10 +247,10 @@ class BunchSlice3D(BaseSpecie):
 
         self.r0 = self.r
 
-        gamma_inv = 1.0 / np.sqrt( 1.0 + p_x*p_x + p_y*p_y + p_z*p_z )
+        self.gamma_inv = 1.0 / np.sqrt( 1.0 + p_x*p_x + p_y*p_y + p_z*p_z )
 
-        self.v_z = p_z * gamma_inv
-        self.dr_dxi = self.p_r * gamma_inv
+        self.v_z = p_z * self.gamma_inv
+        self.dr_dxi = self.p_r * self.gamma_inv
 
         if self.r.size>0:
             self.rmax = self.r.max()
@@ -262,6 +262,7 @@ class BunchSlice3D(BaseSpecie):
     def half_push_coord(self, dt):
         self.x += 0.5 * dt * self.p_x * self.gamma_inv
         self.y += 0.5 * dt * self.p_y * self.gamma_inv
+        self.r[:] = np.sqrt(self.x*self.x + self.y*self.y)
 
     def advance_motion(self, dt):
         Ez = self.dPsi_dxi
