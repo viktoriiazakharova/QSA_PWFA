@@ -184,10 +184,10 @@ class BunchSliceRZ(BaseSpecie):
         self.p_z = p_z.copy()
         self.dQ = dQ.copy()
 
-        gamma_inv = 1.0 / np.sqrt( 1.0 + p_r*p_r + p_z*p_z )
+        self.gamma_inv = 1.0 / np.sqrt( 1.0 + p_r*p_r + p_z*p_z )
 
-        self.v_z = p_z * gamma_inv
-        self.dr_dxi = p_r * gamma_inv
+        self.v_z = p_z * self.gamma_inv
+        self.dr_dxi = p_r * self.gamma_inv
 
         if r.size>0:
             self.rmax = r.max()
