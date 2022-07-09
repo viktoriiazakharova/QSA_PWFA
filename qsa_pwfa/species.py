@@ -268,9 +268,7 @@ class BunchSlice3D(BaseSpecie):
 
         self.r = np.sqrt( x*x + y*y )
         self.p_r = ( p_x*x + p_y*y ) / self.r
-
         self.r0 = self.r
-
         self.gamma_inv = 1.0 / np.sqrt( 1.0 + p_x*p_x + p_y*p_y + p_z*p_z )
 
         self.v_z = p_z * self.gamma_inv
@@ -333,9 +331,6 @@ class BunchBase:
         else:
             self.local_slice = self.empty_slice
 
-        # self.local_slice.init_data(self.local_slice.fields)
-
-
 class BunchSpecie_PPC(BunchBase):
 
     def init_particles(self):
@@ -385,6 +380,74 @@ class BunchSpecie_PPC(BunchBase):
                                                     p_r_bunch[i_xi],
                                                     p_z_bunch[i_xi],
                                                     dQ_bunch[i_xi] )
+
+            self.bunch_slices[i_xi].n_cycles = self.n_cycles
+            self.bunch_slices[i_xi].n_p = self.n_p
+            self.bunch_slices[i_xi].q = self.q
+            self.bunch_slices[i_xi].particle_boundary = self.particle_boundary
+
+
+class BunchFromArrays(BunchBase):
+    """
+    User class to create Gaussian bunch species.
+    """
+
+    def init_particles( self, x, y, xi, p_x, p_y, p_z, charge_total ):
+        """
+        Initialize the Gaussian bunch.
+
+        Args:
+            simulation (Simulation): Simulation object
+            n_cycles (int, optional): Number of sub-steps to be performed for
+              bunch motion over the time step. Defaults to 1.
+        """
+
+
+        self.xi_min, self.xi_max = xi.min(), xi.max()
+        self.i_xi_min = (self.simulation.xi <= self.xi_min).sum()
+        self.i_xi_max = (self.simulation.xi <= self.xi_max).sum()
+
+        dQ = self.q * charge_total * np.ones_like(x) / self.Np / (2*np.pi)
+
+        self.empty_slice = BunchSlice3D( np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0),
+                                         np.zeros(0) )
+        self.empty_slice.n_cycles = self.n_cycles
+        self.empty_slice.n_p = self.n_p
+        self.empty_slice.q = self.q
+        self.empty_slice.particle_boundary = self.particle_boundary
+
+        indx_sort = np.argsort(xi)
+        xi_sim = self.simulation.xi[self.i_xi_min:self.i_xi_max+1]
+        dxi_sim = self.simulation.dxi[self.i_xi_min:self.i_xi_max+1]
+
+        indicies_in_slices = {}
+        for i_xi_sim in range(len(xi_sim)):
+            indicies_in_slices[i_xi_sim] = []
+
+        for i_p in indx_sort:
+            xi_p = xi[i_p]
+            i_xi_loc = np.abs(xi_p - xi_sim).argmin()
+            indicies_in_slices[i_xi_loc].append(i_p)
+
+        for i_xi_sim in range(len(xi_sim)):
+            indicies_in_slice = indicies_in_slices[i_xi_sim]
+            dQ[indicies_in_slice] /= dxi_sim[i_xi_sim]
+
+        self.bunch_slices = {}
+        for i_xi in range(len(xi_sim)):
+            indicies_in_slice = indicies_in_slices[i_xi]
+            self.bunch_slices[i_xi] = BunchSlice3D( x  [indicies_in_slice],
+                                                    y  [indicies_in_slice],
+                                                    xi [indicies_in_slice],
+                                                    p_x[indicies_in_slice],
+                                                    p_y[indicies_in_slice],
+                                                    p_z[indicies_in_slice],
+                                                    dQ [indicies_in_slice])
 
             self.bunch_slices[i_xi].n_cycles = self.n_cycles
             self.bunch_slices[i_xi].n_p = self.n_p
@@ -635,78 +698,69 @@ class GaussianBunch_PPC(BunchSpecie_PPC):
         return val
 
 
-class BunchFromArrays(BunchBase):
+class GaussianBunch_3D(BunchFromArrays):
     """
     User class to create Gaussian bunch species.
     """
-
-    def __init__( self, simulation,
-                  x, y, xi, p_x, p_y, p_z, charge_total,
-                  q=-1.0, n_cycles=1 ):
+    def __init__( self, simulation, n_p, sigma_r, sigma_xi,
+                  xi_0=None, N_particles=10**5, gamma_b=1e4, q=-1.0,
+                  delta_gamma=0.0, eps_r=0.0, n_cycles=1,
+                  truncate_factor=4.0 ):
         """
         Initialize the Gaussian bunch.
 
         Args:
             simulation (Simulation): Simulation object
+            n_p (float): Maximum charge density in units of reference
+              plasma density.
+            sigma_r (float): radial RSM size of the bunch.
+            sigma_xi (float): longitudinal RSM size of the bunch
+            xi_0 (float, optional): Initial position of the bunch. If None,
+              the beam is set as driver at `xi = truncate_factor * sigma_xi`.
+              Defaults to None.
+            N_particles (int, optional): Number of particles in the bunch.
+              Defaults to 100 000.
+            gamma_b (float, optional): Mean Lorentz factor of the bunch.
+              Defaults to 10 000.
+            q (float, optional): Charge of bunch particle species in units of
+              elementary charge `e`. Defaults to -1.0.
+            delta_gamma (float, optional): Relative RMS spread of Lorentz factor
+              in the bunch. Defaults to 0.0.
+            eps_r (float, optional): Normalized emittance of the bunch.
+              Defaults to 0.0.
             n_cycles (int, optional): Number of sub-steps to be performed for
               bunch motion over the time step. Defaults to 1.
+            truncate_factor (float, optional): Factor that defines how far from
+              the bunch center the particles are created. In units of
+              `sigma_xi` and `sigma_r`. Defaults to 4.0.
         """
 
         self.type = "Bunch"
         self.n_cycles = n_cycles
         self.particle_boundary = 0
         self.simulation = simulation
-        self.n_p = 1.0
+        self.n_p = n_p
         self.q = q
 
-        self.Np = xi.size
-        self.xi_min, self.xi_max = xi.min(), xi.max()
-        self.i_xi_min = (self.simulation.xi <= self.xi_min).sum()
-        self.i_xi_max = (self.simulation.xi <= self.xi_max).sum()
+        self.sigma_r = sigma_r
+        self.sigma_xi = sigma_xi
+        self.gamma_b = gamma_b
+        self.delta_gamma = delta_gamma
+        self.eps_r = eps_r
+        self.truncate_factor = truncate_factor
+        self.Np = N_particles
 
-        dQ = q * charge_total * np.ones_like(x) / self.Np / (2*np.pi)
+        if xi_0 is not None:
+            self.xi_0 = xi_0
+        else:
+            self.xi_0 = truncate_factor * sigma_xi
 
-        self.empty_slice = BunchSlice3D( np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0),
-                                         np.zeros(0) )
-        self.empty_slice.n_cycles = self.n_cycles
-        self.empty_slice.n_p = self.n_p
-        self.empty_slice.q = self.q
-        self.empty_slice.particle_boundary = self.particle_boundary
+        Q_total = n_p * (2*np.pi)**1.5 * sigma_r**2 * sigma_xi
+        delta_pr = eps_r / sigma_r
 
-        indx_sort = np.argsort(xi)
-        xi_sim = self.simulation.xi[self.i_xi_min:self.i_xi_max+1]
-        dxi_sim = self.simulation.dxi[self.i_xi_min:self.i_xi_max+1]
+        x, y = sigma_r * np.random.randn(self.Np, 2).T
+        xi = self.xi_0 + sigma_xi * np.random.randn(self.Np)
+        uz = gamma_b + delta_gamma * np.random.randn(self.Np)
+        ux, uy = delta_pr * np.random.randn(self.Np, 2).T
 
-        indicies_in_slices = {}
-        for i_xi_sim in range(len(xi_sim)):
-            indicies_in_slices[i_xi_sim] = []
-
-        for i_p in indx_sort:
-            xi_p = xi[i_p]
-            i_xi_loc = np.abs(xi_p - xi_sim).argmin()
-            indicies_in_slices[i_xi_loc].append(i_p)
-
-        for i_xi_sim in range(len(xi_sim)):
-            indicies_in_slice = indicies_in_slices[i_xi_sim]
-            dQ[indicies_in_slice] /= dxi_sim[i_xi_sim]
-
-        self.bunch_slices = {}
-        for i_xi in range(len(xi_sim)):
-            indicies_in_slice = indicies_in_slices[i_xi]
-            self.bunch_slices[i_xi] = BunchSlice3D( x  [indicies_in_slice],
-                                                    y  [indicies_in_slice],
-                                                    xi [indicies_in_slice],
-                                                    p_x[indicies_in_slice],
-                                                    p_y[indicies_in_slice],
-                                                    p_z[indicies_in_slice],
-                                                    dQ [indicies_in_slice])
-
-            self.bunch_slices[i_xi].n_cycles = self.n_cycles
-            self.bunch_slices[i_xi].n_p = self.n_p
-            self.bunch_slices[i_xi].q = self.q
-            self.bunch_slices[i_xi].particle_boundary = self.particle_boundary
+        self.init_particles( x, y, xi, ux, uy, uz, Q_total)
