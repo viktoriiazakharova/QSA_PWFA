@@ -200,7 +200,31 @@ class BunchSliceRZ(BaseSpecie):
         self.r += 0.5 * self.dr_dxi * dt
 
     def advance_motion(self, dt):
+        Ez = self.dPsi_dxi
+        Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
+        Bt = -self.dAz_dr - self.dAr_dxi
 
+        p_r_next = self.p_r + self.q*dt * ( Er - self.p_z*self.gamma_inv * Bt )
+        p_r_mid = 0.5 * (self.p_r + p_r_next)
+        p_z_mid = self.p_z + 0.5 * dt * self.q * Ez
+
+        self.gamma_inv = 1.0 / np.sqrt(1. + p_r_mid*p_r_mid + p_z_mid*p_z_mid)
+
+        p_z_next = self.p_z + self.q*dt * ( Ez + p_r_mid*self.gamma_inv * Bt )
+
+        self.gamma_inv = 1.0 / np.sqrt(1. + p_r_next**2 + p_z_next**2)
+        self.v_z[:] = p_z_next * self.gamma_inv
+        self.dr_dxi[:] = self.p_r * self.gamma_inv
+
+        self.r += 0.5 * self.dr_dxi * dt
+        self.xi += ( self.v_z - 1 ) * dt
+
+        self.p_r[:] = p_r_next
+        self.p_z[:] = p_z_next
+
+    def advance_motion0(self, dt):
+
+        # self.dPsi_dxi - dr_dxi * (self.dAz_dr + self.dAr_dxi) 
         self.Fz = self.q * dt * (self.dPsi_dxi \
             - self.dr_dxi * (self.dAz_dr - self.dAr_dxi) )
         self.Fr = - self.q * dt \
@@ -276,7 +300,7 @@ class BunchSlice3D(BaseSpecie):
 
         p_x_next = self.p_x + self.q*dt * ( Ex - self.p_z*self.gamma_inv*By )
         p_y_next = self.p_y + self.q*dt * ( Ey + self.p_z*self.gamma_inv*Bx )
-        
+
         p_x_mid = 0.5 * (self.p_x + p_x_next)
         p_y_mid = 0.5 * (self.p_y + p_y_next)
         p_z_mid = self.p_z + 0.5 * dt * self.q * Ez
