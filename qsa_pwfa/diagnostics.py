@@ -134,7 +134,8 @@ class SpeciesDiagnostics:
 
 class BunchDiagnostics:
 
-    def __init__( self, simulation, bunch, fields=[],
+    def __init__( self, simulation, bunch,
+                  fields=['xi', 'r', 'p_z', 'p_r'],
                   species_src=None, dt_step=1 ):
         """
         Available fields are:
@@ -165,11 +166,8 @@ class BunchDiagnostics:
 
     def make_dataset(self):
         self.Data = {}
-        self.Data['r'] = np.zeros(0)
-        self.Data['xi'] = np.zeros(0)
-        self.Data['dQ'] = np.zeros(0)
 
-        for fld in self.fields:
+        for fld in self.fields + ['dQ', ]:
             self.Data[fld] = np.zeros(0)
 
     def save_dataset(self):
@@ -179,18 +177,9 @@ class BunchDiagnostics:
 
         i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
         if i_xi_loc.size>0:
-            Np_loc = self.Data['r'].size
+            Np_loc = self.Data['dQ'].size
             Np_new = self.bunch.local_slice.r.size
 
-            self.Data['r'].resize(Np_loc+Np_new, refcheck=False)
-            self.Data['r'][Np_loc:] = self.bunch.local_slice.r
-
-            self.Data['xi'].resize(Np_loc+Np_new, refcheck=False)
-            self.Data['xi'][Np_loc:] = self.bunch.local_slice.xi
-
-            self.Data['dQ'].resize(Np_loc+Np_new, refcheck=False)
-            self.Data['dQ'][Np_loc:] = self.bunch.local_slice.dQ
-
-            for fld in self.fields:
+            for fld in self.fields + ['dQ', ]:
                 self.Data[fld].resize(Np_loc+Np_new, refcheck=False)
                 self.Data[fld][Np_loc:] = getattr(self.bunch.local_slice, fld)

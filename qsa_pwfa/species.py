@@ -66,41 +66,41 @@ class BaseSpecie:
 
     def get_dAz_dr(self, source_specie):
         self.dAz_dr = methods_inline[source_specie.type]['dAz_dr'](
-                self.dAz_dr, self.r,
-                source_specie.r,
-                source_specie.v_z,
-                source_specie.dQ)
+            self.dAz_dr, self.r,
+            source_specie.r,
+            source_specie.v_z,
+            source_specie.dQ)
 
     def get_Psi(self, source_specie):
         self.Psi = methods_inline[source_specie.type]['Psi'](
-                                self.Psi, self.r,
-                                source_specie.r,
-                                source_specie.r0,
-                                source_specie.dQ)
+            self.Psi, self.r,
+            source_specie.r,
+            source_specie.r0,
+            source_specie.dQ)
 
     def get_dPsi_dr(self, source_specie):
         self.dPsi_dr = methods_inline[source_specie.type]['dPsi_dr'](
-                                self.dPsi_dr, self.r,
-                                source_specie.n_p,
-                                source_specie.r,
-                                source_specie.r0,
-                                source_specie.dQ)
+            self.dPsi_dr, self.r,
+            source_specie.n_p,
+            source_specie.r,
+            source_specie.r0,
+            source_specie.dQ)
 
     def get_dPsi_dxi(self, source_specie):
         self.dPsi_dxi = methods_inline[source_specie.type]['dPsi_dxi'](
-                                self.dPsi_dxi, self.r,
-                                source_specie.r,
-                                source_specie.r0,
-                                source_specie.dr_dxi,
-                                source_specie.dQ)
+            self.dPsi_dxi, self.r,
+            source_specie.r,
+            source_specie.r0,
+            source_specie.dr_dxi,
+            source_specie.dQ)
 
     def get_dAr_dxi(self, source_specie):
         self.dAr_dxi = methods_inline[source_specie.type]['dAr_dxi'](
-                                self.dAr_dxi, self.r,
-                                source_specie.r,
-                                source_specie.dr_dxi,
-                                source_specie.d2r_dxi2,
-                                source_specie.dQ)
+            self.dAr_dxi, self.r,
+            source_specie.r,
+            source_specie.dr_dxi,
+            source_specie.d2r_dxi2,
+            source_specie.dQ)
 
 
 class PlasmaSpecie(BaseSpecie):
@@ -389,19 +389,13 @@ class BunchSpecie_PPC(BunchBase):
 
 class BunchFromArrays(BunchBase):
     """
-    User class to create Gaussian bunch species.
+    Base class to create bunch from numpy arrays of coordinates. Particle weights are
+    identical and are defined by the total charge.
     """
 
     def init_particles( self, x, y, xi, p_x, p_y, p_z, charge_total ):
         """
-        Initialize the Gaussian bunch.
-
-        Args:
-            simulation (Simulation): Simulation object
-            n_cycles (int, optional): Number of sub-steps to be performed for
-              bunch motion over the time step. Defaults to 1.
         """
-
 
         self.xi_min, self.xi_max = xi.min(), xi.max()
         self.i_xi_min = (self.simulation.xi <= self.xi_min).sum()
