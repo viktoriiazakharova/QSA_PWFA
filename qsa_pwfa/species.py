@@ -401,7 +401,7 @@ class BunchFromArrays(BunchBase):
         self.i_xi_min = (self.simulation.xi <= self.xi_min).sum()
         self.i_xi_max = (self.simulation.xi <= self.xi_max).sum()
 
-        dQ = self.q * charge_total * np.ones_like(x) / self.Np / (2*np.pi)
+        dQ = self.q * charge_total * np.ones_like(x) / x.size / (2*np.pi)
 
         self.empty_slice = BunchSlice3D( np.zeros(0),
                                          np.zeros(0),
@@ -735,26 +735,16 @@ class GaussianBunch_3D(BunchFromArrays):
         self.simulation = simulation
         self.n_p = n_p
         self.q = q
-
-        self.sigma_r = sigma_r
-        self.sigma_xi = sigma_xi
-        self.gamma_b = gamma_b
-        self.delta_gamma = delta_gamma
-        self.eps_r = eps_r
-        self.truncate_factor = truncate_factor
-        self.Np = N_particles
-
-        if xi_0 is not None:
-            self.xi_0 = xi_0
-        else:
-            self.xi_0 = truncate_factor * sigma_xi
+        
+        if xi_0 is None:
+          xi_0 = truncate_factor * sigma_xi
 
         Q_total = n_p * (2*np.pi)**1.5 * sigma_r**2 * sigma_xi
         delta_pr = eps_r / sigma_r
 
-        x, y = sigma_r * np.random.randn(self.Np, 2).T
-        xi = self.xi_0 + sigma_xi * np.random.randn(self.Np)
-        uz = gamma_b + delta_gamma * np.random.randn(self.Np)
-        ux, uy = delta_pr * np.random.randn(self.Np, 2).T
+        x, y = sigma_r * np.random.randn(N_particles, 2).T
+        xi = xi_0 + sigma_xi * np.random.randn(N_particles)
+        uz = gamma_b + delta_gamma * np.random.randn(N_particles)
+        ux, uy = delta_pr * np.random.randn(N_particles, 2).T
 
         self.init_particles( x, y, xi, ux, uy, uz, Q_total)
