@@ -135,9 +135,9 @@ class PlasmaSpecie(BaseSpecie):
         self.init_data(self.base_fields)
 
     def get_v_z(self):
-        T = (1. + (self.dr_dxi * (1. - self.q * self.Psi)) ** 2) / \
+        T = (1. + (self.dr_dxi * ( 1. - self.q * self.Psi)) ** 2 ) / \
             (1. - self.q * self.Psi) ** 2
-        self.v_z[:] = (T - 1.) / (T + 1.)
+        self.v_z[:] = ( T - 1. ) / ( T + 1. )
 
     def check_QSA(self):
         if self.do_QSA_check:
@@ -146,16 +146,18 @@ class PlasmaSpecie(BaseSpecie):
             self.v_z[self.v_z>self.vz_max_QSA] = self.vz_max_QSA
 
     def get_Fr_part(self):
-        self.Fr_part[:] = -self.q * (self.dPsi_dr + (1. - self.v_z) * self.dAz_dr)
+        self.Fr_part[:] = -self.q * ( self.dPsi_dr \
+                            + ( 1 - self.v_z ) * self.dAz_dr )
 
     def get_Fr(self):
-        self.Fr[:] = self.Fr_part - self.q *  (1. - self.v_z) * self.dAr_dxi
+        self.Fr[:] = self.Fr_part - self.q *  ( 1. - self.v_z ) * self.dAr_dxi
         if self.particle_boundary == 1:
             self.Fr *= ( self.r<=self.rmax )
 
     def get_d2r_dxi2(self):
         self.d2r_dxi2[:] = ( self.Fr / (1. - self.v_z) \
-            + self.q *  self.dPsi_dxi * self.dr_dxi ) / (1 - self.q *  self.Psi)
+            + self.q *  self.dPsi_dxi * self.dr_dxi ) \
+            / (1 - self.q *  self.Psi)
 
     def advance_motion(self, dxi):
         self.dr_dxi += 0.5 * self.d2r_dxi2 * dxi
@@ -184,7 +186,7 @@ class BunchSliceRZ(BaseSpecie):
         self.p_z = p_z.copy()
         self.dQ = dQ.copy()
 
-        self.gamma_inv = 1.0 / np.sqrt( 1.0 + p_r*p_r + p_z*p_z )
+        self.gamma_inv = 1.0 / np.sqrt( 1.0 + p_r * p_r + p_z * p_z )
 
         self.v_z = p_z * self.gamma_inv
         self.dr_dxi = p_r * self.gamma_inv
@@ -201,17 +203,20 @@ class BunchSliceRZ(BaseSpecie):
         fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
 
     def advance_motion(self, dt):
-        Ez = self.dPsi_dxi
-        Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
-        Bt = -self.dAz_dr - self.dAr_dxi
+        self.Ez = self.dPsi_dxi
+        self.Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
+        self.Bt = -self.dAz_dr - self.dAr_dxi
 
-        p_r_next = self.p_r + self.q*dt * ( Er - self.p_z*self.gamma_inv * Bt )
-        p_r_mid = 0.5 * (self.p_r + p_r_next)
-        p_z_mid = self.p_z + 0.5 * dt * self.q * Ez
+        p_r_next = self.p_r + self.q * dt * ( self.Er \
+                    - self.p_z * self.gamma_inv * self.Bt )
+        p_r_mid = 0.5 * ( self.p_r + p_r_next )
+        p_z_mid = self.p_z + 0.5 * dt * self.q * self.Ez
 
-        self.gamma_inv = 1.0 / np.sqrt(1. + p_r_mid*p_r_mid + p_z_mid*p_z_mid)
+        self.gamma_inv = 1.0 / np.sqrt(1. + p_r_mid * p_r_mid \
+                        + p_z_mid * p_z_mid)
 
-        p_z_next = self.p_z + self.q*dt * ( Ez + p_r_mid*self.gamma_inv * Bt )
+        p_z_next = self.p_z + self.q * dt * ( self.Ez \
+                    + p_r_mid * self.gamma_inv * self.Bt )
 
         self.gamma_inv = 1.0 / np.sqrt(1. + p_r_next**2 + p_z_next**2)
         self.v_z[:] = p_z_next * self.gamma_inv
@@ -224,6 +229,13 @@ class BunchSliceRZ(BaseSpecie):
         self.p_z[:] = p_z_next
 
         fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
+
+    def get_Delta(self):
+        _Ez_ = np.average(self.Ez, weights=self.dQ)
+        _Ez2_ = np.average((self.Ez - _Ez_)**2, weights=self.dQ)
+        Delta = _Ez2_**0.5 / _Ez_
+
+        return Delta
 
 
 class BunchSlice3D(BaseSpecie):
@@ -242,10 +254,11 @@ class BunchSlice3D(BaseSpecie):
         self.p_z = p_z.copy()
         self.dQ = dQ.copy()
 
-        self.r = np.sqrt( x*x + y*y )
-        self.p_r = ( p_x*x + p_y*y ) / self.r
+        self.r = np.sqrt( x * x + y * y )
+        self.p_r = ( p_x * x + p_y * y ) / self.r
         self.r0 = self.r
-        self.gamma_inv = 1.0 / np.sqrt( 1.0 + p_x*p_x + p_y*p_y + p_z*p_z )
+        self.gamma_inv = 1.0 / np.sqrt( 1.0 + p_x * p_x \
+                        + p_y * p_y + p_z * p_z )
 
         self.v_z = p_z * self.gamma_inv
         self.dr_dxi = self.p_r * self.gamma_inv
@@ -263,29 +276,33 @@ class BunchSlice3D(BaseSpecie):
         self.r[:] = np.sqrt(self.x*self.x + self.y*self.y)
 
     def advance_motion(self, dt):
-        Ez = self.dPsi_dxi
-        Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
-        Bt = -self.dAz_dr - self.dAr_dxi
+        self.Ez = self.dPsi_dxi
+        self.Er = -self.dPsi_dr - self.dAz_dr - self.dAr_dxi
+        self.Bt = -self.dAz_dr - self.dAr_dxi
 
-        Ex =  Er * self.x/self.r
-        Ey =  Er * self.y/self.r
-        Bx = -Bt * self.y/self.r
-        By =  Bt * self.x/self.r
+        self.Ex =  self.Er * self.x / self.r
+        self.Ey =  self.Er * self.y / self.r
+        self.Bx = -self.Bt * self.y / self.r
+        self.By =  self.Bt * self.x / self.r
 
-        p_x_next = self.p_x + self.q*dt * ( Ex - self.p_z*self.gamma_inv*By )
-        p_y_next = self.p_y + self.q*dt * ( Ey + self.p_z*self.gamma_inv*Bx )
+        p_x_next = self.p_x + self.q * dt * ( self.Ex \
+                    - self.p_z * self.gamma_inv * self.By )
+        p_y_next = self.p_y + self.q * dt * ( self.Ey \
+                    + self.p_z * self.gamma_inv * self.Bx )
 
         p_x_mid = 0.5 * (self.p_x + p_x_next)
         p_y_mid = 0.5 * (self.p_y + p_y_next)
-        p_z_mid = self.p_z + 0.5 * dt * self.q * Ez
+        p_z_mid = self.p_z + 0.5 * dt * self.q * self.Ez
 
-        self.gamma_inv = 1.0 / np.sqrt(1. + p_x_mid*p_x_mid + \
-            p_y_mid*p_y_mid + p_z_mid*p_z_mid)
+        self.gamma_inv = 1.0 / np.sqrt(1. + p_x_mid * p_x_mid \
+            + p_y_mid * p_y_mid + p_z_mid * p_z_mid)
 
-        p_z_next = self.p_z + self.q*dt * ( Ez + \
-            p_x_mid*self.gamma_inv*By - p_y_mid*self.gamma_inv*Bx )
+        p_z_next = self.p_z + self.q*dt * ( self.Ez \
+                + p_x_mid * self.gamma_inv * self.By \
+                - p_y_mid * self.gamma_inv * self.Bx )
 
-        self.gamma_inv = 1.0 / np.sqrt(1. + p_x_next**2 + p_y_next**2 + p_z_next**2)
+        self.gamma_inv = 1.0 / np.sqrt(1. + p_x_next**2 \
+                            + p_y_next**2 + p_z_next**2)
         self.v_z[:] = p_z_next * self.gamma_inv
 
         self.x += 0.5 * p_x_next * self.gamma_inv * dt
@@ -298,6 +315,13 @@ class BunchSlice3D(BaseSpecie):
         self.r[:] = np.sqrt(self.x*self.x + self.y*self.y)
         self.p_r[:] = ( self.p_x * self.x + self.p_y * self.y ) / self.r
         self.dr_dxi[:] = self.p_r * self.gamma_inv
+
+    def get_Delta(self):
+        _Ez_ = np.average(self.Ez, weights=self.dQ)
+        _Ez2_ = np.average((self.Ez - _Ez_)**2, weights=self.dQ)
+        Delta = _Ez2_**0.5 / _Ez_
+
+        return Delta
 
 
 class BunchBase:
