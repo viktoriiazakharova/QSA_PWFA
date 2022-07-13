@@ -216,6 +216,9 @@ class BunchParametersDiagnostics:
             self.Data[fld] = []
 
     def save_dataset(self):
+        for fld in self.fields:
+             self.Data[fld] = np.array(self.Data[fld])
+
         self.outputs.append(deepcopy(self.Data))
 
     def make_record(self, i_xi):
