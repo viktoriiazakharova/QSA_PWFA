@@ -152,7 +152,7 @@ class BunchDiagnostics:
         self.simulation = simulation
         self.dt_step = dt_step
         self.do_diag = True
-        self.fields = fields.copy()
+        self.fields = fields.copy() + ['dQ', ]
         self.outputs = []
 
         if species_src is not None:
@@ -167,7 +167,7 @@ class BunchDiagnostics:
     def make_dataset(self):
         self.Data = {}
 
-        for fld in self.fields + ['dQ', ]:
+        for fld in self.fields:
             self.Data[fld] = np.zeros(0)
 
     def save_dataset(self):
@@ -180,7 +180,7 @@ class BunchDiagnostics:
             Np_loc = self.Data['dQ'].size
             Np_new = self.bunch.local_slice.r.size
 
-            for fld in self.fields + ['dQ', ]:
+            for fld in self.fields:
                 self.Data[fld].resize(Np_loc+Np_new, refcheck=False)
                 self.Data[fld][Np_loc:] = getattr(self.bunch.local_slice, fld)
 
