@@ -197,7 +197,7 @@ class BunchParametersDiagnostics:
         self.simulation = simulation
         self.dt_step = dt_step
         self.do_diag = True
-        self.fields = fields.copy()
+        self.fields = fields.copy()  + ['sliceQ', ]
         self.outputs = []
 
         if species_src is not None:
@@ -212,7 +212,7 @@ class BunchParametersDiagnostics:
     def make_dataset(self):
         self.Data = {}
 
-        for fld in self.fields + ['sliceQ', ]:
+        for fld in self.fields:
             self.Data[fld] = []
 
     def save_dataset(self):
@@ -221,10 +221,9 @@ class BunchParametersDiagnostics:
     def make_record(self, i_xi):
         i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
         if i_xi_loc.size>0:
-            sliceQ = self.bunch.local_slice.get_sliceQ()
-            self.Data['sliceQ'].append(sliceQ)
             for fld in self.fields:
-                if np.abs(sliceQ) > 0.0 and self.bunch.local_slice.dQ.size>2:
-                    self.Data[fld].append( getattr(self.bunch.local_slice, 'get_'+fld)() )
+                if self.bunch.local_slice.dQ.size>1:
+                    self.Data[fld].append( getattr(self.bunch.local_slice,
+                                                   'get_'+fld)() )
                 else:
                     self.Data[fld].append( 0.0 )
