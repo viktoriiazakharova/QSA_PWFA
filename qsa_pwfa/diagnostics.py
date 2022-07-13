@@ -183,3 +183,43 @@ class BunchDiagnostics:
             for fld in self.fields + ['dQ', ]:
                 self.Data[fld].resize(Np_loc+Np_new, refcheck=False)
                 self.Data[fld][Np_loc:] = getattr(self.bunch.local_slice, fld)
+
+
+class BunchParametersDiagnostics:
+
+    def __init__( self, simulation, bunch,
+                  fields=['sigma_x', 'sigma_y', 'epsilon_x', 'epsilon_y'],
+                  species_src=None, dt_step=1 ):
+        """
+        """
+
+        self.bunch = bunch
+        self.simulation = simulation
+        self.dt_step = dt_step
+        self.do_diag = True
+        self.fields = fields.copy()
+        self.outputs = []
+
+        if species_src is not None:
+            self.species_src = species_src
+        else:
+            self.species_src = simulation.species
+
+        self.i_xi = np.arange(simulation.xi.size)
+        self.i_xi = self.i_xi[(self.i_xi>=self.bunch.i_xi_min)*(self.i_xi<=self.bunch.i_xi_max)]
+        self.xi = simulation.xi[self.i_xi]
+
+    def make_dataset(self):
+        self.Data = {}
+
+        for fld in self.fields + ['sliceQ', ]:
+            self.Data[fld] = []
+
+    def save_dataset(self):
+        self.outputs.append(deepcopy(self.Data))
+
+    def make_record(self, i_xi):
+        i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
+        if i_xi_loc.size>0:
+            for fld in self.fields + ['sliceQ', ]:
+                self.Data[fld].append( getattr(self.bunch, 'get_'+fld)() )

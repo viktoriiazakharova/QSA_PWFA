@@ -320,8 +320,36 @@ class BunchSlice3D(BaseSpecie):
         _Ez_ = np.average(self.Ez, weights=self.dQ)
         _Ez2_ = np.average((self.Ez - _Ez_)**2, weights=self.dQ)
         Delta = _Ez2_**0.5 / _Ez_
-
         return Delta
+
+    def get_sigma_x(self):
+        _x_ = np.average(self.x, weights=self.dQ)
+        _x2_ = np.average(self.x**2, weights=self.dQ)
+        sigma_x = ( _x2_ - _x_ )**0.5
+        return sigma_x
+
+    def get_sigma_y(self):
+        _y_ = np.average(self.y, weights=self.dQ)
+        _y2_ = np.average(self.y**2, weights=self.dQ)
+        sigma_y = ( _y2_ - _y_ )**0.5
+        return sigma_y
+
+    def get_epsilon_x(self):
+        _xpx_ = np.average(self.x * self.px, weights=self.dQ)
+        _x2_ = np.average(self.x**2, weights=self.dQ)
+        _px2_ = np.average(self.px**2, weights=self.dQ)
+        eps_x = ( _x2_ * _px2_ - _xpx_**2 )**0.5
+        return eps_x
+
+    def get_epsilon_y(self):
+        _ypy_ = np.average(self.y * self.py, weights=self.dQ)
+        _y2_ = np.average(self.y**2, weights=self.dQ)
+        _py2_ = np.average(self.py**2, weights=self.dQ)
+        eps_y = ( _y2_ * _py2_ - _ypy_**2 )**0.5
+        return eps_y
+
+    def get_sliceQ(self):
+      return self.dQ.sum()
 
 
 class BunchBase:
