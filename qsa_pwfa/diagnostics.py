@@ -221,5 +221,10 @@ class BunchParametersDiagnostics:
     def make_record(self, i_xi):
         i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
         if i_xi_loc.size>0:
-            for fld in self.fields + ['sliceQ', ]:
-                self.Data[fld].append( getattr(self.bunch.local_slice, 'get_'+fld)() )
+            sliceQ = self.bunch.local_slice.get_sliceQ()
+            self.Data['sliceQ'].append(sliceQ)
+            for fld in self.fields:
+                if np.abs(sliceQ) > 0.0:
+                    self.Data[fld].append( getattr(self.bunch.local_slice, 'get_'+fld)() )
+                else:
+                    self.Data[fld].append( 0.0 )
