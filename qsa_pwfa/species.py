@@ -198,6 +198,7 @@ class BunchSliceRZ(BaseSpecie):
 
     def half_push_coord(self, dt):
         self.r += 0.5 * self.dr_dxi * dt
+        fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
 
     def advance_motion(self, dt):
         Ez = self.dPsi_dxi
@@ -221,31 +222,6 @@ class BunchSliceRZ(BaseSpecie):
 
         self.p_r[:] = p_r_next
         self.p_z[:] = p_z_next
-
-    def advance_motion0(self, dt):
-
-        # self.dPsi_dxi - dr_dxi * (self.dAz_dr + self.dAr_dxi) 
-        self.Fz = self.q * dt * (self.dPsi_dxi \
-            - self.dr_dxi * (self.dAz_dr - self.dAr_dxi) )
-        self.Fr = - self.q * dt \
-            * (self.dPsi_dr + (self.dAz_dr + self.dAr_dxi) * (1 - self.v_z) )
-
-        self.p_z += 0.5 * self.Fz
-        self.p_r += 0.5 * self.Fr
-
-        gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
-        self.v_z[:] = self.p_z / gamma_p
-        self.dr_dxi[:] = self.p_r  / gamma_p
-
-        self.xi += (self.v_z-1) * dt
-        self.r += 0.5 * self.dr_dxi * dt
-
-        self.p_z += 0.5 * self.Fz
-        self.p_r += 0.5 * self.Fr
-
-        gamma_p = np.sqrt(1. + self.p_z**2 + self.p_r**2)
-        self.v_z[:] = self.p_z / gamma_p
-        self.dr_dxi[:] = self.p_r  / gamma_p
 
         fix_crossing_axis_rvp(self.r, self.dr_dxi, self.p_r)
 
