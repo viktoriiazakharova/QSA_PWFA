@@ -325,13 +325,13 @@ class BunchSlice3D(BaseSpecie):
     def get_sigma_x(self):
         _x_ = np.average(self.x, weights=self.dQ)
         _x2_ = np.average(self.x**2, weights=self.dQ)
-        sigma_x = ( _x2_ - _x_ )**0.5
+        sigma_x = ( _x2_ - _x_**2 )**0.5
         return sigma_x
 
     def get_sigma_y(self):
         _y_ = np.average(self.y, weights=self.dQ)
         _y2_ = np.average(self.y**2, weights=self.dQ)
-        sigma_y = ( _y2_ - _y_ )**0.5
+        sigma_y = ( _y2_ - _y_**2 )**0.5
         return sigma_y
 
     def get_epsilon_x(self):
