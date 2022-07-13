@@ -224,7 +224,7 @@ class BunchParametersDiagnostics:
             sliceQ = self.bunch.local_slice.get_sliceQ()
             self.Data['sliceQ'].append(sliceQ)
             for fld in self.fields:
-                if np.abs(sliceQ) > 0.0:
+                if np.abs(sliceQ) > 0.0 and self.bunch.local_slice.dQ.size>2:
                     self.Data[fld].append( getattr(self.bunch.local_slice, 'get_'+fld)() )
                 else:
                     self.Data[fld].append( 0.0 )
