@@ -31,6 +31,19 @@ def fix_crossing_axis_rvp(r, vr, pr):
             pr[j] = np.abs(pr[j])
     return r, vr, pr
 
+@njit(parallel=paralleling,cache=caching)
+def fix_crossing_axis_rvpxy(r, vr, pr, x, y, ux, uy):
+    for j in prange(r.size):
+        if r[j] < 0:
+            r[j] = np.abs(r[j])
+            vr[j] = np.abs(vr[j])
+            pr[j] = np.abs(pr[j])
+            x[j] *= -1
+            y[j] *= -1
+            ux[j] *= -1
+            uy[j] *= -1
+    return r, vr, pr, x, y, ux, uy
+
 @njit(cache=caching)
 def get_Density_inline(Density_target, r_target, dr_target,
                        r_source, dW_source):
