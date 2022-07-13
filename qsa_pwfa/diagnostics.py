@@ -188,7 +188,8 @@ class BunchDiagnostics:
 class BunchParametersDiagnostics:
 
     def __init__( self, simulation, bunch,
-                  fields=['sigma_x', 'sigma_y', 'epsilon_x', 'epsilon_y'],
+                  fields=['sigma_x', 'sigma_y', 'epsilon_x',
+                          'epsilon_y', 'Delta'],
                   species_src=None, dt_step=1 ):
         """
         """
