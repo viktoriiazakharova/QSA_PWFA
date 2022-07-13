@@ -222,4 +222,4 @@ class BunchParametersDiagnostics:
         i_xi_loc = np.nonzero(self.i_xi == i_xi)[0]
         if i_xi_loc.size>0:
             for fld in self.fields + ['sliceQ', ]:
-                self.Data[fld].append( getattr(self.bunch, 'get_'+fld)() )
+                self.Data[fld].append( getattr(self.bunch.local_slice, 'get_'+fld)() )
